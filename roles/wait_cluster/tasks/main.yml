@@ -1,5 +1,5 @@
 ---
-- name: wait_cluster | Wait for cluster API to become reachable
+- name: Wait for cluster API to become reachable
   kubernetes.core.k8s_info:
     api_version: config.openshift.io/v1
     kind: ClusterVersion
@@ -9,7 +9,7 @@
   retries: "{{ wait_cluster_api_retries }}"
   delay: "{{ wait_cluster_api_delay }}"
 
-- name: wait_cluster | Wait for ClusterVersion Available
+- name: Wait for ClusterVersion Available
   kubernetes.core.k8s_info:
     api_version: config.openshift.io/v1
     kind: ClusterVersion
@@ -23,7 +23,7 @@
   retries: "{{ wait_cluster_api_retries }}"
   delay: "{{ wait_cluster_api_delay }}"
 
-- name: wait_cluster | Wait for node Ready
+- name: Wait for node Ready
   kubernetes.core.k8s_info:
     api_version: v1
     kind: Node
@@ -36,7 +36,7 @@
   retries: "{{ wait_cluster_node_retries }}"
   delay: "{{ wait_cluster_node_delay }}"
 
-- name: wait_cluster | Print cluster version
+- name: Print cluster version
   ansible.builtin.debug:
     msg: >-
       Cluster {{ cluster_name }} is up —

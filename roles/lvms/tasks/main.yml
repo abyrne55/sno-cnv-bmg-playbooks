@@ -1,5 +1,5 @@
 ---
-- name: lvms | Create namespace
+- name: Create namespace
   kubernetes.core.k8s:
     state: present
     definition:
@@ -8,17 +8,17 @@
       metadata:
         name: "{{ lvms_namespace }}"
 
-- name: lvms | Create OperatorGroup
+- name: Create OperatorGroup
   kubernetes.core.k8s:
     state: present
     template: operatorgroup.yaml.j2
 
-- name: lvms | Create Subscription
+- name: Create Subscription
   kubernetes.core.k8s:
     state: present
     template: subscription.yaml.j2
 
-- name: lvms | Wait for CSV to succeed
+- name: Wait for CSV to succeed
   kubernetes.core.k8s_info:
     api_version: operators.coreos.com/v1alpha1
     kind: ClusterServiceVersion
@@ -32,12 +32,12 @@
   retries: "{{ lvms_csv_retries }}"
   delay: "{{ lvms_csv_delay }}"
 
-- name: lvms | Apply LVMCluster
+- name: Apply LVMCluster
   kubernetes.core.k8s:
     state: present
     template: lvmcluster.yaml.j2
 
-- name: lvms | Wait for LVMCluster ready
+- name: Wait for LVMCluster ready
   kubernetes.core.k8s_info:
     api_version: lvm.topolvm.io/v1alpha1
     kind: LVMCluster
@@ -50,7 +50,7 @@
   retries: "{{ lvms_cluster_retries }}"
   delay: "{{ lvms_cluster_delay }}"
 
-- name: lvms | Verify StorageClass exists
+- name: Verify StorageClass exists
   kubernetes.core.k8s_info:
     api_version: storage.k8s.io/v1
     kind: StorageClass
@@ -60,6 +60,6 @@
   retries: 10
   delay: 10
 
-- name: lvms | Print status
+- name: Print status
   ansible.builtin.debug:
     msg: "LVMS ready — StorageClass lvms-virtstore available"

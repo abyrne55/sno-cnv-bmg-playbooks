@@ -1,17 +1,17 @@
 ---
-- name: vfio_gpu | Create rendered output directory
+- name: Create rendered output directory
   ansible.builtin.file:
     path: "{{ build_dir }}/rendered"
     state: directory
     mode: "0755"
 
-- name: vfio_gpu | Template VFIO Butane config
+- name: Template VFIO Butane config
   ansible.builtin.template:
     src: 94-vfio-gpu.bu.j2
     dest: "{{ build_dir }}/rendered/94-vfio-gpu.bu"
     mode: "0644"
 
-- name: vfio_gpu | Compile VFIO Butane config to MachineConfig YAML
+- name: Compile VFIO Butane config to MachineConfig YAML
   ansible.builtin.command:
     cmd: >-
       {{ butane_binary | default('butane') }} --strict
@@ -19,17 +19,17 @@
       -o {{ build_dir }}/rendered/94-vfio-gpu.yaml
   changed_when: true
 
-- name: vfio_gpu | Read compiled MachineConfig
+- name: Read compiled MachineConfig
   ansible.builtin.slurp:
     src: "{{ build_dir }}/rendered/94-vfio-gpu.yaml"
   register: vfio_mc_content
 
-- name: vfio_gpu | Apply VFIO MachineConfig
+- name: Apply VFIO MachineConfig
   kubernetes.core.k8s:
     state: present
     definition: "{{ vfio_mc_content.content | b64decode | from_yaml }}"
 
-- name: vfio_gpu | Wait for MachineConfigPool master to finish updating
+- name: Wait for MachineConfigPool master to finish updating
   kubernetes.core.k8s_info:
     api_version: machineconfiguration.openshift.io/v1
     kind: MachineConfigPool
@@ -43,6 +43,6 @@
   retries: "{{ vfio_mcp_retries }}"
   delay: "{{ vfio_mcp_delay }}"
 
-- name: vfio_gpu | Print MCP status
+- name: Print MCP status
   ansible.builtin.debug:
     msg: "MachineConfigPool master is Updated — VFIO GPU binding applied"

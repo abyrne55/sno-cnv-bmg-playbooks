@@ -1,5 +1,5 @@
 ---
-- name: certmanager | Create namespace
+- name: Create namespace
   kubernetes.core.k8s:
     state: present
     definition:
@@ -8,17 +8,17 @@
       metadata:
         name: "{{ certmanager_namespace }}"
 
-- name: certmanager | Create OperatorGroup
+- name: Create OperatorGroup
   kubernetes.core.k8s:
     state: present
     template: operatorgroup.yaml.j2
 
-- name: certmanager | Create Subscription
+- name: Create Subscription
   kubernetes.core.k8s:
     state: present
     template: subscription.yaml.j2
 
-- name: certmanager | Wait for CSV to succeed
+- name: Wait for CSV to succeed
   kubernetes.core.k8s_info:
     api_version: operators.coreos.com/v1alpha1
     kind: ClusterServiceVersion
@@ -32,7 +32,7 @@
   retries: "{{ certmanager_csv_retries }}"
   delay: "{{ certmanager_csv_delay }}"
 
-- name: certmanager | Wait for cert-manager pods ready
+- name: Wait for cert-manager pods ready
   kubernetes.core.k8s_info:
     api_version: v1
     kind: Pod
@@ -46,7 +46,7 @@
   retries: 30
   delay: 10
 
-- name: certmanager | Wait for ClusterIssuer CRD
+- name: Wait for ClusterIssuer CRD
   kubernetes.core.k8s_info:
     api_version: apiextensions.k8s.io/v1
     kind: CustomResourceDefinition
@@ -56,22 +56,22 @@
   retries: 15
   delay: 10
 
-- name: certmanager | Create Cloudflare API token Secret
+- name: Create Cloudflare API token Secret
   kubernetes.core.k8s:
     state: present
     template: cloudflare-secret.yaml.j2
 
-- name: certmanager | Apply ClusterIssuer
+- name: Apply ClusterIssuer
   kubernetes.core.k8s:
     state: present
     template: clusterissuer.yaml.j2
 
-- name: certmanager | Apply Certificates
+- name: Apply Certificates
   kubernetes.core.k8s:
     state: present
     template: certificates.yaml.j2
 
-- name: certmanager | Wait for apps wildcard certificate Ready
+- name: Wait for apps wildcard certificate Ready
   kubernetes.core.k8s_info:
     api_version: cert-manager.io/v1
     kind: Certificate
@@ -87,7 +87,7 @@
   retries: "{{ certmanager_cert_retries }}"
   delay: "{{ certmanager_cert_delay }}"
 
-- name: certmanager | Wait for API certificate Ready
+- name: Wait for API certificate Ready
   kubernetes.core.k8s_info:
     api_version: cert-manager.io/v1
     kind: Certificate
@@ -103,7 +103,7 @@
   retries: "{{ certmanager_cert_retries }}"
   delay: "{{ certmanager_cert_delay }}"
 
-- name: certmanager | Patch IngressController with wildcard cert
+- name: Patch IngressController with wildcard cert
   kubernetes.core.k8s:
     state: patched
     api_version: operator.openshift.io/v1
@@ -115,7 +115,7 @@
         defaultCertificate:
           name: apps-wildcard-tls
 
-- name: certmanager | Patch APIServer with API cert
+- name: Patch APIServer with API cert
   kubernetes.core.k8s:
     state: patched
     api_version: config.openshift.io/v1
@@ -130,13 +130,13 @@
               servingCertificate:
                 name: api-tls
 
-- name: certmanager | Strip self-signed CA from kubeconfig
+- name: Strip self-signed CA from kubeconfig
   ansible.builtin.replace:
     path: "{{ build_dir }}/auth/kubeconfig"
     regexp: '^\s*certificate-authority-data:.*$'
     replace: ""
 
-- name: certmanager | Wait for kube-apiserver ClusterOperator to settle
+- name: Wait for kube-apiserver ClusterOperator to settle
   kubernetes.core.k8s_info:
     api_version: config.openshift.io/v1
     kind: ClusterOperator
@@ -153,6 +153,6 @@
   retries: "{{ certmanager_co_retries }}"
   delay: "{{ certmanager_co_delay }}"
 
-- name: certmanager | Print status
+- name: Print status
   ansible.builtin.debug:
     msg: "TLS certificates issued and wired — kube-apiserver settled"

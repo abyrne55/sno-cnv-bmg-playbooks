@@ -1,5 +1,5 @@
 ---
-- name: cnv | Create namespace
+- name: Create namespace
   kubernetes.core.k8s:
     state: present
     definition:
@@ -8,17 +8,17 @@
       metadata:
         name: "{{ cnv_namespace }}"
 
-- name: cnv | Create OperatorGroup
+- name: Create OperatorGroup
   kubernetes.core.k8s:
     state: present
     template: operatorgroup.yaml.j2
 
-- name: cnv | Create Subscription
+- name: Create Subscription
   kubernetes.core.k8s:
     state: present
     template: subscription.yaml.j2
 
-- name: cnv | Wait for CSV to succeed
+- name: Wait for CSV to succeed
   kubernetes.core.k8s_info:
     api_version: operators.coreos.com/v1alpha1
     kind: ClusterServiceVersion
@@ -32,7 +32,7 @@
   retries: "{{ cnv_csv_retries }}"
   delay: "{{ cnv_csv_delay }}"
 
-- name: cnv | Wait for HyperConverged CRD
+- name: Wait for HyperConverged CRD
   kubernetes.core.k8s_info:
     api_version: apiextensions.k8s.io/v1
     kind: CustomResourceDefinition
@@ -42,12 +42,12 @@
   retries: 15
   delay: 10
 
-- name: cnv | Apply HyperConverged
+- name: Apply HyperConverged
   kubernetes.core.k8s:
     state: present
     template: hyperconverged.yaml.j2
 
-- name: cnv | Wait for HyperConverged Available
+- name: Wait for HyperConverged Available
   kubernetes.core.k8s_info:
     api_version: hco.kubevirt.io/v1
     kind: HyperConverged
@@ -63,6 +63,6 @@
   retries: "{{ cnv_hco_retries }}"
   delay: "{{ cnv_hco_delay }}"
 
-- name: cnv | Print status
+- name: Print status
   ansible.builtin.debug:
     msg: "CNV HyperConverged is Available"

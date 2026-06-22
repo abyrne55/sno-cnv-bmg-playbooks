@@ -1,8 +1,13 @@
 ---
+exclude_paths:
+  - vars/vault.yml
+
 skip_list:
-  # Deliberate: task names use `role | action` prefix pattern
-  - name[casing]
-  # Deliberate: short register names are clearer than double-prefixed ones
   - var-naming[no-role-prefix]
-  # SSH public keys are inherently long single-line strings
   - yaml[line-length]
+
+# Vault-encrypted vars/vault.yml can't be decrypted during pre-commit,
+# causing ansible-playbook --syntax-check to fail with internal-error.
+# Individual role syntax checks still run fine.
+warn_list:
+  - internal-error

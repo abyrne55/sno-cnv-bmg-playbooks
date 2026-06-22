@@ -1,29 +1,29 @@
 ---
-- name: generate_iso | Create build directory
+- name: Create build directory
   ansible.builtin.file:
     path: "{{ build_dir }}"
     state: directory
     mode: "0755"
 
-- name: generate_iso | Create openshift subdirectory
+- name: Create openshift subdirectory
   ansible.builtin.file:
     path: "{{ build_dir }}/openshift"
     state: directory
     mode: "0755"
 
-- name: generate_iso | Template install-config.yaml
+- name: Template install-config.yaml
   ansible.builtin.template:
     src: install-config.yaml.j2
     dest: "{{ build_dir }}/install-config.yaml"
     mode: "0600"
 
-- name: generate_iso | Template agent-config.yaml
+- name: Template agent-config.yaml
   ansible.builtin.template:
     src: agent-config.yaml.j2
     dest: "{{ build_dir }}/agent-config.yaml"
     mode: "0644"
 
-- name: generate_iso | Template Butane configs
+- name: Template Butane configs
   ansible.builtin.template:
     src: "{{ item }}.j2"
     dest: "{{ build_dir }}/{{ item }}"
@@ -34,7 +34,7 @@
     - 92-serial-console.bu
     - 93-sysrq.bu
 
-- name: generate_iso | Compile Butane configs to MachineConfig YAML
+- name: Compile Butane configs to MachineConfig YAML
   ansible.builtin.command:
     cmd: >-
       {{ butane_binary }} --strict
@@ -47,44 +47,44 @@
     - 93-sysrq.bu
   changed_when: true
 
-- name: generate_iso | Back up install-config.yaml
+- name: Back up install-config.yaml
   ansible.builtin.copy:
     src: "{{ build_dir }}/install-config.yaml"
     dest: "{{ build_dir }}/install-config.yaml.bak"
     mode: "0600"
 
-- name: generate_iso | Back up agent-config.yaml
+- name: Back up agent-config.yaml
   ansible.builtin.copy:
     src: "{{ build_dir }}/agent-config.yaml"
     dest: "{{ build_dir }}/agent-config.yaml.bak"
     mode: "0644"
 
-- name: generate_iso | Generate agent ISO
+- name: Generate agent ISO
   ansible.builtin.command:
     cmd: "{{ openshift_install_binary }} agent create image --dir {{ build_dir }}"
   changed_when: true
 
-- name: generate_iso | Restore install-config.yaml from backup
+- name: Restore install-config.yaml from backup
   ansible.builtin.copy:
     src: "{{ build_dir }}/install-config.yaml.bak"
     dest: "{{ build_dir }}/install-config.yaml"
     mode: "0600"
 
-- name: generate_iso | Restore agent-config.yaml from backup
+- name: Restore agent-config.yaml from backup
   ansible.builtin.copy:
     src: "{{ build_dir }}/agent-config.yaml.bak"
     dest: "{{ build_dir }}/agent-config.yaml"
     mode: "0644"
 
-- name: generate_iso | Print ISO location
+- name: Print ISO location
   ansible.builtin.debug:
     msg: "ISO generated at: {{ build_dir }}/agent.x86_64.iso"
 
-- name: generate_iso | Print kubeconfig location
+- name: Print kubeconfig location
   ansible.builtin.debug:
     msg: "Kubeconfig: {{ build_dir }}/auth/kubeconfig"
 
-- name: generate_iso | Print required DNS records
+- name: Print required DNS records
   ansible.builtin.debug:
     msg: |
       Create the following DNS records pointing to {{ rendezvous_ip }}:

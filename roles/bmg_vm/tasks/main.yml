@@ -1,5 +1,5 @@
 ---
-- name: bmg_vm | Create namespace
+- name: Create namespace
   kubernetes.core.k8s:
     state: present
     definition:
@@ -8,7 +8,7 @@
       metadata:
         name: "{{ vm_namespace }}"
 
-- name: bmg_vm | Apply VirtualMachine
+- name: Apply VirtualMachine
   kubevirt.core.kubevirt_vm:
     state: present
     name: "{{ vm_name }}"
@@ -68,7 +68,7 @@
                 - pciutils
     wait: false
 
-- name: bmg_vm | Wait for VMI Running
+- name: Wait for VMI Running
   kubernetes.core.k8s_info:
     api_version: kubevirt.io/v1
     kind: VirtualMachineInstance
@@ -81,6 +81,6 @@
   retries: "{{ bmg_vm_retries }}"
   delay: "{{ bmg_vm_delay }}"
 
-- name: bmg_vm | Print VM status
+- name: Print VM status
   ansible.builtin.debug:
     msg: "VM {{ vm_name }} is Running in namespace {{ vm_namespace }}"
