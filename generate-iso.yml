@@ -97,6 +97,18 @@
       ansible.builtin.debug:
         msg: "Kubeconfig: {{ (build_dir + '/auth/kubeconfig') | realpath }}"
 
+    - name: Read kubeadmin password
+      ansible.builtin.slurp:
+        src: "{{ build_dir }}/auth/kubeadmin-password"
+      register: kubeadmin_password_file
+
+    - name: Print web console login details
+      ansible.builtin.debug:
+        msg: |
+          Web console: https://console-openshift-console.apps.{{ cluster_name }}.{{ base_domain }}
+          Username:    kubeadmin
+          Password:    {{ kubeadmin_password_file.content | b64decode }}
+
     - name: Print required DNS records
       ansible.builtin.debug:
         msg: |
