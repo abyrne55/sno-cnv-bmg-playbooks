@@ -12,29 +12,45 @@
     butane_binary: butane
 
   tasks:
+    - name: Check if ISO already exists
+      ansible.builtin.stat:
+        path: "{{ build_dir }}/agent.x86_64.iso"
+      register: existing_iso
+
+    - name: Warn that ISO generation is being skipped
+      ansible.builtin.debug:
+        msg: >-
+          ISO already exists at {{ (build_dir + '/agent.x86_64.iso') | realpath }}.
+          Delete it and re-run to regenerate.
+      when: existing_iso.stat.exists
+
     - name: Create build directory
       ansible.builtin.file:
         path: "{{ build_dir }}"
         state: directory
         mode: "0755"
+      when: not existing_iso.stat.exists
 
     - name: Create openshift subdirectory
       ansible.builtin.file:
         path: "{{ build_dir }}/openshift"
         state: directory
         mode: "0755"
+      when: not existing_iso.stat.exists
 
     - name: Template install-config.yaml
       ansible.builtin.template:
         src: install-config.yaml.j2
         dest: "{{ build_dir }}/install-config.yaml"
         mode: "0600"
+      when: not existing_iso.stat.exists
 
     - name: Template agent-config.yaml
       ansible.builtin.template:
         src: agent-config.yaml.j2
         dest: "{{ build_dir }}/agent-config.yaml"
         mode: "0644"
+      when: not existing_iso.stat.exists
 
     - name: Template Butane configs
       ansible.builtin.template:
@@ -46,6 +62,7 @@
         - 91-iommu-pt.bu
         - 92-serial-console.bu
         - 93-sysrq.bu
+      when: not existing_iso.stat.exists
 
     - name: Compile Butane configs to MachineConfig YAML
       ansible.builtin.command:
@@ -59,35 +76,41 @@
         - 92-serial-console.bu
         - 93-sysrq.bu
       changed_when: true
+      when: not existing_iso.stat.exists
 
     - name: Back up install-config.yaml
       ansible.builtin.copy:
         src: "{{ build_dir }}/install-config.yaml"
         dest: "{{ build_dir }}/install-config.yaml.bak"
         mode: "0600"
+      when: not existing_iso.stat.exists
 
     - name: Back up agent-config.yaml
       ansible.builtin.copy:
         src: "{{ build_dir }}/agent-config.yaml"
         dest: "{{ build_dir }}/agent-config.yaml.bak"
         mode: "0644"
+      when: not existing_iso.stat.exists
 
     - name: Generate agent ISO
       ansible.builtin.command:
         cmd: "{{ openshift_install_binary }} agent create image --dir {{ build_dir }}"
       changed_when: true
+      when: not existing_iso.stat.exists
 
     - name: Restore install-config.yaml from backup
       ansible.builtin.copy:
         src: "{{ build_dir }}/install-config.yaml.bak"
         dest: "{{ build_dir }}/install-config.yaml"
         mode: "0600"
+      when: not existing_iso.stat.exists
 
     - name: Restore agent-config.yaml from backup
       ansible.builtin.copy:
         src: "{{ build_dir }}/agent-config.yaml.bak"
         dest: "{{ build_dir }}/agent-config.yaml"
         mode: "0644"
+      when: not existing_iso.stat.exists
 
     - name: Print ISO location
       ansible.builtin.debug:
