@@ -11,6 +11,18 @@
     K8S_AUTH_KUBECONFIG: "{{ build_dir }}/auth/kubeconfig"
 
   pre_tasks:
+    - name: Check oc CLI is available
+      ansible.builtin.command:
+        cmd: which oc
+      changed_when: false
+      failed_when: false
+      register: preflight_oc
+
+    - name: Fail if oc missing
+      ansible.builtin.fail:
+        msg: "Required tool 'oc' not found in PATH."
+      when: preflight_oc.rc != 0
+
     - name: Check kubernetes Python module is installed
       ansible.builtin.command:
         cmd: "{{ ansible_python_interpreter | default('python3') }} -c 'import kubernetes'"

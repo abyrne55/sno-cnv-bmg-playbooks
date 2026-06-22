@@ -11,6 +11,26 @@
     openshift_install_binary: openshift-install
     butane_binary: butane
 
+  pre_tasks:
+    - name: Check required CLI tools
+      ansible.builtin.command:
+        cmd: "which {{ item }}"
+      changed_when: false
+      failed_when: false
+      register: preflight_cli
+      loop:
+        - "{{ openshift_install_binary }}"
+        - "{{ butane_binary }}"
+
+    - name: Fail if CLI tools missing
+      ansible.builtin.fail:
+        msg: >-
+          Required tool '{{ item.item }}' not found in PATH.
+      when: item.rc != 0
+      loop: "{{ preflight_cli.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
   tasks:
     - name: Check if ISO already exists
       ansible.builtin.stat:

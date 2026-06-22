@@ -8,8 +8,9 @@ spec:
     deviceClasses:
       - name: virtstore
         default: true
-        devices:
-          - {{ virtstore_device }}
+        deviceSelector:
+          paths:
+            - {{ virtstore_device }}
         thinPoolConfig:
           name: thin-pool-virtstore
           sizePercent: {{ lvms_thin_pool_size_percent }}

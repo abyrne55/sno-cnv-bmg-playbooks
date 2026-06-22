@@ -131,6 +131,64 @@ Or create an alternate vars file and pass it with `--extra-vars @vars/sno2.yml`.
 
 Modes are mutually exclusive; `wait_cluster`, `lvms`, `certmanager`, and `verify` run in both. Set `gpu_access_mode` to switch.
 
+## Booting the ISO via kexec
+
+On machines without BMC virtual media (or when virtual media is unavailable), use `kexec` to boot the agent ISO directly from a running RHEL system. This replaces the running kernel in-place — no BIOS interaction needed.
+
+### Transfer the ISO
+
+```bash
+scp build/<cluster>/agent.x86_64.iso root@<host-ip>:/root/
+```
+
+### Extract boot files and build combined initrd
+
+```bash
+ssh root@<host-ip>
+
+mkdir -p /mnt/iso
+mount -o loop /root/agent.x86_64.iso /mnt/iso
+
+cp /mnt/iso/images/pxeboot/vmlinuz /root/agent-vmlinuz
+cp /mnt/iso/images/pxeboot/initrd.img /root/agent-initrd.img
+cp /mnt/iso/images/ignition.img /root/agent-ignition.img
+cp /mnt/iso/images/pxeboot/rootfs.img /root/agent-rootfs.img
+
+umount /mnt/iso
+
+cat /root/agent-initrd.img \
+    /root/agent-ignition.img \
+    /root/agent-rootfs.img \
+    > /root/agent-combined-initrd.img
+```
+
+### Load and execute kexec
+
+```bash
+kexec -l /root/agent-vmlinuz \
+  --initrd=/root/agent-combined-initrd.img \
+  --append="rd.neednet=1 ignition.firstboot ignition.platform.id=metal console=tty0"
+
+# Point of no return — RHEL is replaced immediately
+sync && kexec -e
+```
+
+Adjust `console=` to match the machine's serial port if needed (e.g., `console=ttyS0,115200n8 console=tty0`). The machine needs at least 4 GB free RAM beyond what the OS uses to hold the ~1.3 GB combined initrd.
+
+### Monitor the install
+
+```bash
+# From your workstation
+openshift-install --dir build/<cluster> agent wait-for bootstrap-complete --log-level=info
+openshift-install --dir build/<cluster> agent wait-for install-complete --log-level=info
+```
+
+### Important notes
+
+- **Do not** include `coreos.liveiso=` or `coreos.live.rootfs_url=` in the kernel args — these cause hangs when booting via kexec with a combined initrd
+- **`ignition.firstboot` and `ignition.platform.id=metal`** are required — without them, the Ignition config is silently skipped
+- Generate the ISO on your **workstation**, not the target host — `openshift-install` creates `auth/kubeconfig` alongside the ISO, and the target disk will be wiped
+
 ## Known Issues
 
 1. **Butane/Ignition version mismatch**: OCP 4.22 MCC only supports Ignition 3.5.0, but Butane with `version: 4.22.0` emits Ignition 3.6.0. Use `butane_ocp_version: 4.21.0`.
