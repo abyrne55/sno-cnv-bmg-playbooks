@@ -33,10 +33,9 @@
     kind: ClusterServiceVersion
     namespace: "{{ item }}"
   register: verify_csv_info
-  loop:
-    - openshift-lvm-storage
-    - openshift-cnv
-    - cert-manager-operator
+  loop: >-
+    {{ ['openshift-lvm-storage', 'cert-manager-operator']
+       + (['openshift-cnv'] if gpu_access_mode == 'vfio' else []) }}
 
 - name: Print CSV status
   ansible.builtin.debug:

@@ -23,6 +23,7 @@
 
     - role: cnv
       tags: [cnv]
+      when: gpu_access_mode == 'vfio'
 
     - role: certmanager
       tags: [certmanager]

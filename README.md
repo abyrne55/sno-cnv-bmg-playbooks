@@ -126,10 +126,10 @@ Or create an alternate vars file and pass it with `--extra-vars @vars/sno2.yml`.
 
 | Mode | Day-2 Roles | GPU Exposed As |
 |------|-------------|----------------|
-| `vfio` (default) | `vfio_gpu` + `cnv` + `bmg_vm` | `devices.kubevirt.io/bmg-g31` (KubeVirt device plugin) |
-| `dra` | `dra_gpu` | `ResourceSlice` (DRA ResourceClaim) |
+| `vfio` (default) | `wait_cluster` `vfio_gpu` `lvms` `cnv` `certmanager` `bmg_vm` `verify` | `devices.kubevirt.io/bmg-g31` (KubeVirt device plugin) |
+| `dra` | `wait_cluster` `lvms` `certmanager` `dra_gpu` `verify` | `ResourceSlice` (DRA ResourceClaim) |
 
-Modes are mutually exclusive. Set `gpu_access_mode` to switch.
+Modes are mutually exclusive; `wait_cluster`, `lvms`, `certmanager`, and `verify` run in both. Set `gpu_access_mode` to switch.
 
 ## Known Issues
 
