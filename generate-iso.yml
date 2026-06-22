@@ -91,11 +91,11 @@
 
     - name: Print ISO location
       ansible.builtin.debug:
-        msg: "ISO generated at: {{ build_dir }}/agent.x86_64.iso"
+        msg: "ISO generated at: {{ (build_dir + '/agent.x86_64.iso') | realpath }}"
 
     - name: Print kubeconfig location
       ansible.builtin.debug:
-        msg: "Kubeconfig: {{ build_dir }}/auth/kubeconfig"
+        msg: "Kubeconfig: {{ (build_dir + '/auth/kubeconfig') | realpath }}"
 
     - name: Print required DNS records
       ansible.builtin.debug:
