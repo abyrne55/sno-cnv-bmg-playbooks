@@ -6,7 +6,7 @@
       apiVersion: v1
       kind: Namespace
       metadata:
-        name: "{{ dra_namespace }}"
+        name: "{{ dra_gpu_namespace }}"
 
 - name: Create SCC ClusterRoleBinding
   kubernetes.core.k8s:
@@ -15,10 +15,10 @@
 
 - name: Install Intel GPU resource driver via Helm
   kubernetes.core.helm:
-    name: "{{ dra_release_name }}"
-    chart_ref: "{{ dra_driver_chart }}"
-    chart_version: "{{ dra_driver_version }}"
-    release_namespace: "{{ dra_namespace }}"
+    name: "{{ dra_gpu_release_name }}"
+    chart_ref: "{{ dra_gpu_driver_chart }}"
+    chart_version: "{{ dra_gpu_driver_version }}"
+    release_namespace: "{{ dra_gpu_namespace }}"
     create_namespace: false
     wait: true
     timeout: 10m0s
@@ -27,11 +27,11 @@
   kubernetes.core.k8s_info:
     api_version: resource.k8s.io/v1beta1
     kind: ResourceSlice
-  register: rs_result
-  until: rs_result.resources | length > 0
-  retries: "{{ dra_resourceslice_retries }}"
-  delay: "{{ dra_resourceslice_delay }}"
+  register: dra_gpu_rs_result
+  until: dra_gpu_rs_result.resources | length > 0
+  retries: "{{ dra_gpu_resourceslice_retries }}"
+  delay: "{{ dra_gpu_resourceslice_delay }}"
 
 - name: Print status
   ansible.builtin.debug:
-    msg: "Intel DRA GPU driver deployed — {{ rs_result.resources | length }} ResourceSlice(s) found"
+    msg: "Intel DRA GPU driver deployed — {{ dra_gpu_rs_result.resources | length }} ResourceSlice(s) found"

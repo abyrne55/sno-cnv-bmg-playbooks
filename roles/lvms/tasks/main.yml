@@ -43,10 +43,10 @@
     kind: LVMCluster
     name: lvmcluster
     namespace: "{{ lvms_namespace }}"
-  register: lvm_result
+  register: lvms_lvm_result
   until: >-
-    lvm_result.resources | length > 0 and
-    lvm_result.resources[0].status.state | default('') == 'Ready'
+    lvms_lvm_result.resources | length > 0 and
+    lvms_lvm_result.resources[0].status.state | default('') == 'Ready'
   retries: "{{ lvms_cluster_retries }}"
   delay: "{{ lvms_cluster_delay }}"
 
@@ -55,8 +55,8 @@
     api_version: storage.k8s.io/v1
     kind: StorageClass
     name: lvms-virtstore
-  register: sc_result
-  until: sc_result.resources | length > 0
+  register: lvms_sc_result
+  until: lvms_sc_result.resources | length > 0
   retries: 10
   delay: 10
 

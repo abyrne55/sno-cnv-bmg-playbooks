@@ -25,10 +25,10 @@
     namespace: "{{ certmanager_namespace }}"
     label_selectors:
       - "operators.coreos.com/openshift-cert-manager-operator.{{ certmanager_namespace }}"
-  register: cm_csv
+  register: certmanager_csv
   until: >-
-    cm_csv.resources | length > 0 and
-    cm_csv.resources[0].status.phase | default('') == 'Succeeded'
+    certmanager_csv.resources | length > 0 and
+    certmanager_csv.resources[0].status.phase | default('') == 'Succeeded'
   retries: "{{ certmanager_csv_retries }}"
   delay: "{{ certmanager_csv_delay }}"
 
@@ -41,8 +41,8 @@
       - app=cert-manager
     field_selectors:
       - status.phase=Running
-  register: cm_pods
-  until: cm_pods.resources | length > 0
+  register: certmanager_pods
+  until: certmanager_pods.resources | length > 0
   retries: 30
   delay: 10
 
@@ -51,8 +51,8 @@
     api_version: apiextensions.k8s.io/v1
     kind: CustomResourceDefinition
     name: clusterissuers.cert-manager.io
-  register: ci_crd
-  until: ci_crd.resources | length > 0
+  register: certmanager_ci_crd
+  until: certmanager_ci_crd.resources | length > 0
   retries: 15
   delay: 10
 
@@ -77,10 +77,10 @@
     kind: Certificate
     name: apps-wildcard-tls
     namespace: openshift-ingress
-  register: apps_cert
+  register: certmanager_apps_cert
   until: >-
-    apps_cert.resources | length > 0 and
-    apps_cert.resources[0].status.conditions |
+    certmanager_apps_cert.resources | length > 0 and
+    certmanager_apps_cert.resources[0].status.conditions |
     default([]) |
     selectattr('type', 'equalto', 'Ready') |
     selectattr('status', 'equalto', 'True') | list | length > 0
@@ -93,10 +93,10 @@
     kind: Certificate
     name: api-tls
     namespace: openshift-config
-  register: api_cert
+  register: certmanager_api_cert
   until: >-
-    api_cert.resources | length > 0 and
-    api_cert.resources[0].status.conditions |
+    certmanager_api_cert.resources | length > 0 and
+    certmanager_api_cert.resources[0].status.conditions |
     default([]) |
     selectattr('type', 'equalto', 'Ready') |
     selectattr('status', 'equalto', 'True') | list | length > 0
@@ -141,13 +141,13 @@
     api_version: config.openshift.io/v1
     kind: ClusterOperator
     name: kube-apiserver
-  register: co_result
+  register: certmanager_co_result
   until: >-
-    co_result.resources | length > 0 and
-    co_result.resources[0].status.conditions |
+    certmanager_co_result.resources | length > 0 and
+    certmanager_co_result.resources[0].status.conditions |
     selectattr('type', 'equalto', 'Available') |
     selectattr('status', 'equalto', 'True') | list | length > 0 and
-    co_result.resources[0].status.conditions |
+    certmanager_co_result.resources[0].status.conditions |
     selectattr('type', 'equalto', 'Progressing') |
     selectattr('status', 'equalto', 'False') | list | length > 0
   retries: "{{ certmanager_co_retries }}"

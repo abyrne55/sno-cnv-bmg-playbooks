@@ -4,17 +4,17 @@
     api_version: config.openshift.io/v1
     kind: ClusterVersion
     name: version
-  register: cv_info
+  register: verify_cv_info
 
 - name: Print cluster version
   ansible.builtin.debug:
-    msg: "Cluster version: {{ cv_info.resources[0].status.desired.version }}"
+    msg: "Cluster version: {{ verify_cv_info.resources[0].status.desired.version }}"
 
 - name: Get nodes
   kubernetes.core.k8s_info:
     api_version: v1
     kind: Node
-  register: node_info
+  register: verify_node_info
 
 - name: Print node status
   ansible.builtin.debug:
@@ -23,7 +23,7 @@
       {{ item.status.conditions |
          selectattr('type', 'equalto', 'Ready') |
          map(attribute='status') | first }}
-  loop: "{{ node_info.resources }}"
+  loop: "{{ verify_node_info.resources }}"
   loop_control:
     label: "{{ item.metadata.name }}"
 
@@ -32,7 +32,7 @@
     api_version: operators.coreos.com/v1alpha1
     kind: ClusterServiceVersion
     namespace: "{{ item }}"
-  register: csv_info
+  register: verify_csv_info
   loop:
     - openshift-lvm-storage
     - openshift-cnv
@@ -43,7 +43,7 @@
     msg: >-
       {{ item.1.metadata.name }} —
       {{ item.1.status.phase | default('Unknown') }}
-  loop: "{{ csv_info.results | subelements('resources') }}"
+  loop: "{{ verify_csv_info.results | subelements('resources') }}"
   loop_control:
     label: "{{ item.1.metadata.name }}"
 
@@ -53,7 +53,7 @@
     kind: Certificate
     name: "{{ item.name }}"
     namespace: "{{ item.namespace }}"
-  register: cert_info
+  register: verify_cert_info
   loop:
     - { name: apps-wildcard-tls, namespace: openshift-ingress }
     - { name: api-tls, namespace: openshift-config }
@@ -70,33 +70,33 @@
       {% else %}
       Not found
       {% endif %}
-  loop: "{{ cert_info.results }}"
+  loop: "{{ verify_cert_info.results }}"
   loop_control:
     label: "{{ item.item.name }}"
 
 - name: Check GPU binding (VFIO mode)
   ansible.builtin.command:
-    cmd: oc debug node/{{ node_info.resources[0].metadata.name }} -- chroot /host lspci -nnk -d {{ gpu_pci_id }}
-  register: gpu_lspci
+    cmd: oc debug node/{{ verify_node_info.resources[0].metadata.name }} -- chroot /host lspci -nnk -d {{ gpu_pci_id }}
+  register: verify_gpu_lspci
   changed_when: false
   failed_when: false
   when: gpu_access_mode == 'vfio' and verify_gpu_debug
 
 - name: Print GPU binding
   ansible.builtin.debug:
-    msg: "{{ gpu_lspci.stdout_lines }}"
-  when: gpu_access_mode == 'vfio' and verify_gpu_debug and gpu_lspci.rc == 0
+    msg: "{{ verify_gpu_lspci.stdout_lines }}"
+  when: gpu_access_mode == 'vfio' and verify_gpu_debug and verify_gpu_lspci.rc == 0
 
 - name: Check ResourceSlice (DRA mode)
   kubernetes.core.k8s_info:
     api_version: resource.k8s.io/v1beta1
     kind: ResourceSlice
-  register: rs_info
+  register: verify_rs_info
   when: gpu_access_mode == 'dra'
 
 - name: Print ResourceSlice count
   ansible.builtin.debug:
-    msg: "ResourceSlices: {{ rs_info.resources | length }}"
+    msg: "ResourceSlices: {{ verify_rs_info.resources | length }}"
   when: gpu_access_mode == 'dra'
 
 - name: Check VM status (VFIO mode)
@@ -105,12 +105,12 @@
     kind: VirtualMachineInstance
     name: "{{ vm_name }}"
     namespace: "{{ vm_namespace }}"
-  register: vmi_info
+  register: verify_vmi_info
   when: gpu_access_mode == 'vfio'
 
 - name: Print VM status
   ansible.builtin.debug:
     msg: >-
       VM {{ vm_name }} —
-      {{ vmi_info.resources[0].status.phase | default('Not found') }}
-  when: gpu_access_mode == 'vfio' and vmi_info.resources | length > 0
+      {{ verify_vmi_info.resources[0].status.phase | default('Not found') }}
+  when: gpu_access_mode == 'vfio' and verify_vmi_info.resources | length > 0

@@ -37,8 +37,8 @@
     api_version: apiextensions.k8s.io/v1
     kind: CustomResourceDefinition
     name: hyperconvergeds.hco.kubevirt.io
-  register: hco_crd
-  until: hco_crd.resources | length > 0
+  register: cnv_hco_crd
+  until: cnv_hco_crd.resources | length > 0
   retries: 15
   delay: 10
 
@@ -53,10 +53,10 @@
     kind: HyperConverged
     name: kubevirt-hyperconverged
     namespace: "{{ cnv_namespace }}"
-  register: hco_result
+  register: cnv_hco_result
   until: >-
-    hco_result.resources | length > 0 and
-    hco_result.resources[0].status.conditions |
+    cnv_hco_result.resources | length > 0 and
+    cnv_hco_result.resources[0].status.conditions |
     default([]) |
     selectattr('type', 'equalto', 'Available') |
     selectattr('status', 'equalto', 'True') | list | length > 0

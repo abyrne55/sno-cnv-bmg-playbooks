@@ -3,7 +3,6 @@ exclude_paths:
   - vars/vault.yml
 
 skip_list:
-  - var-naming[no-role-prefix]
   - yaml[line-length]
 
 # Vault-encrypted vars/vault.yml can't be decrypted during pre-commit,

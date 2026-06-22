@@ -22,26 +22,26 @@
 - name: Read compiled MachineConfig
   ansible.builtin.slurp:
     src: "{{ build_dir }}/rendered/94-vfio-gpu.yaml"
-  register: vfio_mc_content
+  register: vfio_gpu_mc_content
 
 - name: Apply VFIO MachineConfig
   kubernetes.core.k8s:
     state: present
-    definition: "{{ vfio_mc_content.content | b64decode | from_yaml }}"
+    definition: "{{ vfio_gpu_mc_content.content | b64decode | from_yaml }}"
 
 - name: Wait for MachineConfigPool master to finish updating
   kubernetes.core.k8s_info:
     api_version: machineconfiguration.openshift.io/v1
     kind: MachineConfigPool
     name: master
-  register: mcp_result
+  register: vfio_gpu_mcp_result
   until: >-
-    mcp_result.resources | length > 0 and
-    mcp_result.resources[0].status.conditions |
+    vfio_gpu_mcp_result.resources | length > 0 and
+    vfio_gpu_mcp_result.resources[0].status.conditions |
     selectattr('type', 'equalto', 'Updated') |
     selectattr('status', 'equalto', 'True') | list | length > 0
-  retries: "{{ vfio_mcp_retries }}"
-  delay: "{{ vfio_mcp_delay }}"
+  retries: "{{ vfio_gpu_mcp_retries }}"
+  delay: "{{ vfio_gpu_mcp_delay }}"
 
 - name: Print MCP status
   ansible.builtin.debug:

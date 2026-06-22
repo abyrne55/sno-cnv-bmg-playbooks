@@ -74,10 +74,10 @@
     kind: VirtualMachineInstance
     name: "{{ vm_name }}"
     namespace: "{{ vm_namespace }}"
-  register: vmi_result
+  register: bmg_vm_vmi_result
   until: >-
-    vmi_result.resources | length > 0 and
-    vmi_result.resources[0].status.phase | default('') == 'Running'
+    bmg_vm_vmi_result.resources | length > 0 and
+    bmg_vm_vmi_result.resources[0].status.phase | default('') == 'Running'
   retries: "{{ bmg_vm_retries }}"
   delay: "{{ bmg_vm_delay }}"
 
