@@ -27,10 +27,11 @@ Create these DNS records pointing to the machine's IP:
 
 Install on workstation:
 
-- `ansible` (with `kubernetes` and `PyYAML` Python packages)
+- `ansible` (with `kubernetes` Python package)
 - `oc`
 - `butane`
 - `openshift-install`
+- `helm` (only for DRA GPU mode)
 
 ## Quick Start
 
@@ -62,7 +63,7 @@ ansible-playbook configure-cluster.yml --ask-vault-pass
 Preview what the playbooks will do without making changes:
 
 ```bash
-# Day-0: renders templates, shows butane/openshift-install commands but skips them
+# Day-0: shows template diffs, skips butane/openshift-install commands
 ansible-playbook generate-iso.yml --check --diff --ask-vault-pass
 
 # Day-2: renders day-2 YAMLs, shows k8s module diffs but skips resource creation
@@ -86,9 +87,10 @@ Copy `vars/vault.yml.example` to `vars/vault.yml`, populate, and encrypt with `a
 
 ## Tags
 
+Tags apply to `configure-cluster.yml` only (`generate-iso.yml` runs as a flat task list with no tags).
+
 | Tag | Roles | Description |
 |-----|-------|-------------|
-| `iso` | `generate_iso` | Generate agent-based installer ISO |
 | `wait` | `wait_cluster` | Wait for cluster API + node ready |
 | `vfio` | `vfio_gpu` | Apply VFIO MachineConfig (triggers reboot) |
 | `lvms` | `lvms` | Install LVMS operator + LVMCluster |
