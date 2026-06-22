@@ -4,5 +4,7 @@ certmanager_csv_retries: 30
 certmanager_csv_delay: 20
 certmanager_cert_retries: 30
 certmanager_cert_delay: 20
+certmanager_ci_retries: 10
+certmanager_ci_delay: 15
 certmanager_co_retries: 40
 certmanager_co_delay: 30

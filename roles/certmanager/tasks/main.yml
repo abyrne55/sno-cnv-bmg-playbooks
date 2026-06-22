@@ -65,6 +65,10 @@
   kubernetes.core.k8s:
     state: present
     template: clusterissuer.yaml.j2
+  register: certmanager_ci_result
+  until: certmanager_ci_result is not failed
+  retries: "{{ certmanager_ci_retries }}"
+  delay: "{{ certmanager_ci_delay }}"
 
 - name: Apply Certificates
   kubernetes.core.k8s:
@@ -130,12 +134,6 @@
               servingCertificate:
                 name: api-tls
 
-- name: Strip self-signed CA from kubeconfig
-  ansible.builtin.replace:
-    path: "{{ build_dir }}/auth/kubeconfig"
-    regexp: '^\s*certificate-authority-data:.*$'
-    replace: ""
-
 - name: Wait for kube-apiserver ClusterOperator to settle
   kubernetes.core.k8s_info:
     api_version: config.openshift.io/v1
@@ -152,6 +150,12 @@
     selectattr('status', 'equalto', 'False') | list | length > 0
   retries: "{{ certmanager_co_retries }}"
   delay: "{{ certmanager_co_delay }}"
+
+- name: Strip self-signed CA from kubeconfig
+  ansible.builtin.replace:
+    path: "{{ build_dir }}/auth/kubeconfig"
+    regexp: '^\s*certificate-authority-data:.*$'
+    replace: ""
 
 - name: Print status
   ansible.builtin.debug:

@@ -10,6 +10,21 @@
   environment:
     K8S_AUTH_KUBECONFIG: "{{ build_dir }}/auth/kubeconfig"
 
+  pre_tasks:
+    - name: Check kubernetes Python module is installed
+      ansible.builtin.command:
+        cmd: "{{ ansible_python_interpreter | default('python3') }} -c 'import kubernetes'"
+      changed_when: false
+      failed_when: false
+      register: preflight_k8s_python
+
+    - name: Fail if kubernetes module missing
+      ansible.builtin.fail:
+        msg: >-
+          The 'kubernetes' Python module is required but not installed.
+          Install it with: pip install kubernetes
+      when: preflight_k8s_python.rc != 0
+
   roles:
     - role: wait_cluster
       tags: [wait]
