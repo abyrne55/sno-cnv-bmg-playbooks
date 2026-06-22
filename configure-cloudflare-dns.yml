@@ -1,0 +1,104 @@
+---
+- name: Configure Cloudflare DNS records for SNO cluster
+  hosts: localhost
+  gather_facts: false
+
+  vars_files:
+    - vars/cluster.yml
+    - vars/vault.yml
+
+  vars:
+    dns_state: present
+    dns_records:
+      - "{{ cluster_name }}.{{ base_domain }}"
+      - "api.{{ cluster_name }}.{{ base_domain }}"
+      - "api-int.{{ cluster_name }}.{{ base_domain }}"
+      - "*.apps.{{ cluster_name }}.{{ base_domain }}"
+
+  pre_tasks:
+    - name: Check required Python packages
+      community.general.python_requirements_info:
+        dependencies:
+          - dnspython
+      register: preflight_python
+
+    - name: Fail if Python packages missing
+      ansible.builtin.fail:
+        msg: >-
+          Missing Python packages: {{ preflight_python.not_found | join(', ') }}.
+          Install with: pip install {{ preflight_python.not_found | join(' ') }}
+      when: preflight_python.not_found | length > 0
+
+    - name: Validate required variables
+      ansible.builtin.assert:
+        that:
+          - cluster_name is defined
+          - base_domain is defined
+          - rendezvous_ip is defined
+          - vault_cloudflare_api_token is defined
+        fail_msg: >-
+          Missing required variables. Ensure cluster_name, base_domain,
+          rendezvous_ip, and vault_cloudflare_api_token are defined.
+
+    - name: Validate Cloudflare API token is not placeholder
+      ansible.builtin.fail:
+        msg: >-
+          vault_cloudflare_api_token is still the placeholder value.
+          Run 'ansible-vault edit vars/vault.yml' to set it.
+      when: vault_cloudflare_api_token == "REPLACE_WITH_CLOUDFLARE_API_TOKEN"
+
+    - name: Validate rendezvous_ip is a valid IPv4 address
+      ansible.builtin.fail:
+        msg: "rendezvous_ip '{{ rendezvous_ip }}' is not a valid IPv4 address."
+      when: rendezvous_ip is not regex('^(\d{1,3}\.){3}\d{1,3}$')
+
+  tasks:
+    - name: Show planned DNS changes
+      ansible.builtin.debug:
+        msg: >-
+          {{ (dns_state == "present") | ternary("Creating", "Removing") }}
+          DNS records for {{ cluster_name }}.{{ base_domain }}
+          → {{ rendezvous_ip }}:
+          {{ dns_records | join(", ") }}
+
+    - name: Manage Cloudflare DNS records
+      community.general.cloudflare_dns:
+        zone: "{{ base_domain }}"
+        record: "{{ item }}"
+        type: A
+        content: "{{ rendezvous_ip }}"
+        ttl: 1
+        solo: false
+        state: "{{ dns_state }}"
+        api_token: "{{ vault_cloudflare_api_token }}"
+      loop: "{{ dns_records }}"
+      loop_control:
+        label: "{{ item }}"
+
+    - name: Verify DNS resolution
+      ansible.builtin.set_fact:
+        dns_verification: >-
+          {{ dns_verification | default([]) +
+             [{"record": item,
+               "result": lookup("community.general.dig", item, "@1.1.1.1",
+                                errors="ignore")}] }}
+      loop: "{{ dns_records }}"
+      loop_control:
+        label: "{{ item }}"
+      when: dns_state == "present"
+
+    - name: Show DNS verification results
+      ansible.builtin.debug:
+        msg: >-
+          {{ item.record }}
+          → {{ item.result | default("(no response yet — propagation may take a moment)", true) }}
+      loop: "{{ dns_verification }}"
+      loop_control:
+        label: "{{ item.record }}"
+      when: dns_state == "present"
+
+    - name: Show summary
+      ansible.builtin.debug:
+        msg: >-
+          DNS records {{ (dns_state == "present") | ternary("created", "removed") }}
+          for {{ cluster_name }}.{{ base_domain }}.

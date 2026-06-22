@@ -23,19 +23,18 @@
         msg: "Required tool 'oc' not found in PATH."
       when: preflight_oc.rc != 0
 
-    - name: Check kubernetes Python module is installed
-      ansible.builtin.command:
-        cmd: "{{ ansible_python_interpreter | default('python3') }} -c 'import kubernetes'"
-      changed_when: false
-      failed_when: false
-      register: preflight_k8s_python
+    - name: Check required Python packages
+      community.general.python_requirements_info:
+        dependencies:
+          - kubernetes
+      register: preflight_python
 
-    - name: Fail if kubernetes module missing
+    - name: Fail if Python packages missing
       ansible.builtin.fail:
         msg: >-
-          The 'kubernetes' Python module is required but not installed.
-          Install it with: pip install kubernetes
-      when: preflight_k8s_python.rc != 0
+          Missing Python packages: {{ preflight_python.not_found | join(', ') }}.
+          Install with: pip install {{ preflight_python.not_found | join(' ') }}
+      when: preflight_python.not_found | length > 0
 
   roles:
     - role: wait_cluster

@@ -2,10 +2,11 @@
 
 Ansible automation for provisioning a Single Node OpenShift (SNO) cluster with OpenShift Virtualization (CNV), LVMS storage, cert-manager TLS, and Intel BattleMage GPU passthrough.
 
-Two playbooks cover the full lifecycle:
+Three playbooks cover the full lifecycle:
 
-1. **`generate-iso.yml`** (Day-0) — generates an agent-based installer ISO with MachineConfigs baked in
-2. **`configure-cluster.yml`** (Day-2) — installs operators, configures GPU passthrough, provisions a VM
+1. **`configure-cloudflare-dns.yml`** (Pre-deploy) — creates Cloudflare DNS records for the cluster
+2. **`generate-iso.yml`** (Day-0) — generates an agent-based installer ISO with MachineConfigs baked in
+3. **`configure-cluster.yml`** (Day-2) — installs operators, configures GPU passthrough, provisions a VM
 
 ## Prerequisites
 
@@ -15,19 +16,13 @@ Reserve a bare-metal machine via Beaker. Note its hostname, MAC address, NIC nam
 
 ### DNS Records
 
-Create these DNS records pointing to the machine's IP:
-
-| Record | Type | Value |
-|--------|------|-------|
-| `api.<cluster>.<domain>` | A | machine IP |
-| `api-int.<cluster>.<domain>` | A | machine IP |
-| `*.apps.<cluster>.<domain>` | A | machine IP |
+DNS records (`<cluster>.<domain>`, `api.<cluster>.<domain>`, `api-int.<cluster>.<domain>`, `*.apps.<cluster>.<domain>`) are created automatically by `configure-cloudflare-dns.yml`. You need a Cloudflare API token with `Zone:DNS:Edit` permissions — set it in `vars/vault.yml` as `vault_cloudflare_api_token`.
 
 ### Tools
 
 Install on workstation:
 
-- `ansible` (with `kubernetes` Python package)
+- `ansible` (with `kubernetes` and `dnspython` Python packages)
 - `oc`
 - `butane`
 - `openshift-install`
@@ -49,13 +44,24 @@ $EDITOR vars/cluster.yml
 ansible-vault encrypt vars/vault.yml
 ansible-vault edit vars/vault.yml
 
-# 4. Generate ISO (day-0)
+# 4. Create DNS records
+ansible-playbook configure-cloudflare-dns.yml --ask-vault-pass
+
+# 5. Generate ISO (day-0)
 ansible-playbook generate-iso.yml --ask-vault-pass
 
-# 5. Boot ISO on the target machine (manual: kexec or USB)
+# 6. Boot ISO on the target machine (manual: kexec or USB)
 
-# 6. Configure cluster (day-2)
+# 7. Configure cluster (day-2)
 ansible-playbook configure-cluster.yml --ask-vault-pass
+```
+
+### Teardown
+
+To remove DNS records when decommissioning a cluster:
+
+```bash
+ansible-playbook configure-cloudflare-dns.yml --ask-vault-pass -e dns_state=absent
 ```
 
 ## Dry Run
@@ -63,6 +69,9 @@ ansible-playbook configure-cluster.yml --ask-vault-pass
 Preview what the playbooks will do without making changes:
 
 ```bash
+# Pre-deploy: shows planned DNS changes without creating records
+ansible-playbook configure-cloudflare-dns.yml --check --diff --ask-vault-pass
+
 # Day-0: shows template diffs, skips butane/openshift-install commands
 ansible-playbook generate-iso.yml --check --diff --ask-vault-pass
 
@@ -87,7 +96,7 @@ Copy `vars/vault.yml.example` to `vars/vault.yml`, populate, and encrypt with `a
 
 ## Tags
 
-Tags apply to `configure-cluster.yml` only (`generate-iso.yml` runs as a flat task list with no tags).
+Tags apply to `configure-cluster.yml` only (`generate-iso.yml` and `configure-cloudflare-dns.yml` run as flat task lists with no tags).
 
 | Tag | Roles | Description |
 |-----|-------|-------------|
