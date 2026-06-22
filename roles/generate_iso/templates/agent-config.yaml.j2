@@ -1,0 +1,38 @@
+apiVersion: v1beta1
+kind: AgentConfig
+metadata:
+  name: {{ cluster_name }}
+additionalNTPSources:
+{% for ntp in ntp_sources %}
+- {{ ntp }}
+{% endfor %}
+rendezvousIP: {{ rendezvous_ip }}
+hosts:
+- hostname: {{ hostname }}
+  role: master
+  interfaces:
+  - name: {{ nic_name }}
+    macAddress: {{ mac_address }}
+  rootDeviceHints:
+    deviceName: {{ root_device }}
+  networkConfig:
+    interfaces:
+    - name: {{ nic_name }}
+      type: ethernet
+      state: up
+      ipv4:
+        enabled: true
+        dhcp: true
+      ipv6:
+        enabled: false
+    dns-resolver:
+      config:
+        server:
+{% for dns in dns_servers %}
+        - {{ dns }}
+{% endfor %}
+    routes:
+      config:
+      - destination: 0.0.0.0/0
+        next-hop-address: {{ gateway }}
+        next-hop-interface: {{ nic_name }}

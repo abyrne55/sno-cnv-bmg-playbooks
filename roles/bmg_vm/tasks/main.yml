@@ -1,0 +1,86 @@
+---
+- name: bmg_vm | Create namespace
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: "{{ vm_namespace }}"
+
+- name: bmg_vm | Apply VirtualMachine
+  kubevirt.core.kubevirt_vm:
+    state: present
+    name: "{{ vm_name }}"
+    namespace: "{{ vm_namespace }}"
+    run_strategy: Always
+    labels:
+      kubevirt.io/vm: "{{ vm_name }}"
+    data_volume_templates:
+      - metadata:
+          name: "{{ vm_name }}-root"
+        spec:
+          sourceRef:
+            kind: DataSource
+            name: "{{ vm_source_image }}"
+            namespace: openshift-virtualization-os-images
+          storage:
+            accessModes:
+              - ReadWriteOnce
+            resources:
+              requests:
+                storage: "{{ vm_disk_size }}"
+    spec:
+      domain:
+        cpu:
+          cores: "{{ vm_cpus }}"
+        memory:
+          guest: "{{ vm_memory }}"
+        devices:
+          disks:
+            - disk:
+                bus: virtio
+              name: rootdisk
+            - disk:
+                bus: virtio
+              name: cloudinitdisk
+          interfaces:
+            - name: default
+              masquerade: {}
+          gpus:
+            - deviceName: "{{ gpu_resource_name }}"
+              name: bmg-gpu
+      networks:
+        - name: default
+          pod: {}
+      volumes:
+        - name: rootdisk
+          dataVolume:
+            name: "{{ vm_name }}-root"
+        - name: cloudinitdisk
+          cloudInitNoCloud:
+            userData: |
+              #cloud-config
+              user: vmuser
+              ssh_authorized_keys:
+                - {{ ssh_public_key }}
+              packages:
+                - pciutils
+    wait: false
+
+- name: bmg_vm | Wait for VMI Running
+  kubernetes.core.k8s_info:
+    api_version: kubevirt.io/v1
+    kind: VirtualMachineInstance
+    name: "{{ vm_name }}"
+    namespace: "{{ vm_namespace }}"
+  register: vmi_result
+  until: >-
+    vmi_result.resources | length > 0 and
+    vmi_result.resources[0].status.phase | default('') == 'Running'
+  retries: "{{ bmg_vm_retries }}"
+  delay: "{{ bmg_vm_delay }}"
+
+- name: bmg_vm | Print VM status
+  ansible.builtin.debug:
+    msg: "VM {{ vm_name }} is Running in namespace {{ vm_namespace }}"

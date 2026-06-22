@@ -1,0 +1,8 @@
+---
+certmanager_namespace: cert-manager-operator
+certmanager_csv_retries: 30
+certmanager_csv_delay: 20
+certmanager_cert_retries: 30
+certmanager_cert_delay: 20
+certmanager_co_retries: 40
+certmanager_co_delay: 30

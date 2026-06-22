@@ -1,0 +1,158 @@
+---
+- name: certmanager | Create namespace
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: "{{ certmanager_namespace }}"
+
+- name: certmanager | Create OperatorGroup
+  kubernetes.core.k8s:
+    state: present
+    template: operatorgroup.yaml.j2
+
+- name: certmanager | Create Subscription
+  kubernetes.core.k8s:
+    state: present
+    template: subscription.yaml.j2
+
+- name: certmanager | Wait for CSV to succeed
+  kubernetes.core.k8s_info:
+    api_version: operators.coreos.com/v1alpha1
+    kind: ClusterServiceVersion
+    namespace: "{{ certmanager_namespace }}"
+    label_selectors:
+      - "operators.coreos.com/openshift-cert-manager-operator.{{ certmanager_namespace }}"
+  register: cm_csv
+  until: >-
+    cm_csv.resources | length > 0 and
+    cm_csv.resources[0].status.phase | default('') == 'Succeeded'
+  retries: "{{ certmanager_csv_retries }}"
+  delay: "{{ certmanager_csv_delay }}"
+
+- name: certmanager | Wait for cert-manager pods ready
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Pod
+    namespace: cert-manager
+    label_selectors:
+      - app=cert-manager
+    field_selectors:
+      - status.phase=Running
+  register: cm_pods
+  until: cm_pods.resources | length > 0
+  retries: 30
+  delay: 10
+
+- name: certmanager | Wait for ClusterIssuer CRD
+  kubernetes.core.k8s_info:
+    api_version: apiextensions.k8s.io/v1
+    kind: CustomResourceDefinition
+    name: clusterissuers.cert-manager.io
+  register: ci_crd
+  until: ci_crd.resources | length > 0
+  retries: 15
+  delay: 10
+
+- name: certmanager | Create Cloudflare API token Secret
+  kubernetes.core.k8s:
+    state: present
+    template: cloudflare-secret.yaml.j2
+
+- name: certmanager | Apply ClusterIssuer
+  kubernetes.core.k8s:
+    state: present
+    template: clusterissuer.yaml.j2
+
+- name: certmanager | Apply Certificates
+  kubernetes.core.k8s:
+    state: present
+    template: certificates.yaml.j2
+
+- name: certmanager | Wait for apps wildcard certificate Ready
+  kubernetes.core.k8s_info:
+    api_version: cert-manager.io/v1
+    kind: Certificate
+    name: apps-wildcard-tls
+    namespace: openshift-ingress
+  register: apps_cert
+  until: >-
+    apps_cert.resources | length > 0 and
+    apps_cert.resources[0].status.conditions |
+    default([]) |
+    selectattr('type', 'equalto', 'Ready') |
+    selectattr('status', 'equalto', 'True') | list | length > 0
+  retries: "{{ certmanager_cert_retries }}"
+  delay: "{{ certmanager_cert_delay }}"
+
+- name: certmanager | Wait for API certificate Ready
+  kubernetes.core.k8s_info:
+    api_version: cert-manager.io/v1
+    kind: Certificate
+    name: api-tls
+    namespace: openshift-config
+  register: api_cert
+  until: >-
+    api_cert.resources | length > 0 and
+    api_cert.resources[0].status.conditions |
+    default([]) |
+    selectattr('type', 'equalto', 'Ready') |
+    selectattr('status', 'equalto', 'True') | list | length > 0
+  retries: "{{ certmanager_cert_retries }}"
+  delay: "{{ certmanager_cert_delay }}"
+
+- name: certmanager | Patch IngressController with wildcard cert
+  kubernetes.core.k8s:
+    state: patched
+    api_version: operator.openshift.io/v1
+    kind: IngressController
+    name: default
+    namespace: openshift-ingress-operator
+    definition:
+      spec:
+        defaultCertificate:
+          name: apps-wildcard-tls
+
+- name: certmanager | Patch APIServer with API cert
+  kubernetes.core.k8s:
+    state: patched
+    api_version: config.openshift.io/v1
+    kind: APIServer
+    name: cluster
+    definition:
+      spec:
+        servingCerts:
+          namedCertificates:
+            - names:
+                - "api.{{ cluster_name }}.{{ base_domain }}"
+              servingCertificate:
+                name: api-tls
+
+- name: certmanager | Strip self-signed CA from kubeconfig
+  ansible.builtin.replace:
+    path: "{{ build_dir }}/auth/kubeconfig"
+    regexp: '^\s*certificate-authority-data:.*$'
+    replace: ""
+
+- name: certmanager | Wait for kube-apiserver ClusterOperator to settle
+  kubernetes.core.k8s_info:
+    api_version: config.openshift.io/v1
+    kind: ClusterOperator
+    name: kube-apiserver
+  register: co_result
+  until: >-
+    co_result.resources | length > 0 and
+    co_result.resources[0].status.conditions |
+    selectattr('type', 'equalto', 'Available') |
+    selectattr('status', 'equalto', 'True') | list | length > 0 and
+    co_result.resources[0].status.conditions |
+    selectattr('type', 'equalto', 'Progressing') |
+    selectattr('status', 'equalto', 'False') | list | length > 0
+  retries: "{{ certmanager_co_retries }}"
+  delay: "{{ certmanager_co_delay }}"
+
+- name: certmanager | Print status
+  ansible.builtin.debug:
+    msg: "TLS certificates issued and wired — kube-apiserver settled"

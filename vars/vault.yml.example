@@ -1,0 +1,6 @@
+---
+# 1. Copy this file:  cp vars/vault.yml.example vars/vault.yml
+# 2. Fill in the values below
+# 3. Encrypt it:      ansible-vault encrypt vars/vault.yml
+vault_pull_secret: "REPLACE_WITH_PULL_SECRET_JSON"
+vault_cloudflare_api_token: "REPLACE_WITH_CLOUDFLARE_API_TOKEN"

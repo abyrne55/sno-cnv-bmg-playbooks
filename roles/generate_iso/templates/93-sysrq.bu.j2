@@ -1,0 +1,13 @@
+variant: openshift
+version: {{ butane_ocp_version }}
+metadata:
+  labels:
+    machineconfiguration.openshift.io/role: master
+  name: 93-sysrq
+storage:
+  files:
+  - path: /etc/sysctl.d/99-sysrq.conf
+    mode: 0644
+    contents:
+      inline: |
+        kernel.sysrq=1

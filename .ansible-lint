@@ -1,0 +1,8 @@
+---
+skip_list:
+  # Deliberate: task names use `role | action` prefix pattern
+  - name[casing]
+  # Deliberate: short register names are clearer than double-prefixed ones
+  - var-naming[no-role-prefix]
+  # SSH public keys are inherently long single-line strings
+  - yaml[line-length]

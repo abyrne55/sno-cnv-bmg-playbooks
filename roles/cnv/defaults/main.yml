@@ -1,0 +1,6 @@
+---
+cnv_namespace: openshift-cnv
+cnv_csv_retries: 30
+cnv_csv_delay: 20
+cnv_hco_retries: 30
+cnv_hco_delay: 20

@@ -1,0 +1,5 @@
+---
+wait_cluster_api_retries: 60
+wait_cluster_api_delay: 60
+wait_cluster_node_retries: 60
+wait_cluster_node_delay: 60

@@ -1,0 +1,16 @@
+apiVersion: lvm.topolvm.io/v1alpha1
+kind: LVMCluster
+metadata:
+  name: lvmcluster
+  namespace: {{ lvms_namespace }}
+spec:
+  storage:
+    deviceClasses:
+      - name: virtstore
+        default: true
+        devices:
+          - {{ virtstore_device }}
+        thinPoolConfig:
+          name: thin-pool-virtstore
+          sizePercent: {{ lvms_thin_pool_size_percent }}
+          overprovisionRatio: {{ lvms_thin_pool_overprovision_ratio }}

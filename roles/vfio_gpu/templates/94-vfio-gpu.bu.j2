@@ -1,0 +1,22 @@
+variant: openshift
+version: {{ butane_ocp_version }}
+metadata:
+  labels:
+    machineconfiguration.openshift.io/role: master
+  name: 94-vfio-gpu
+openshift:
+  kernel_arguments:
+  - vfio-pci.ids={{ gpu_pci_id }}
+  - rd.driver.pre=vfio_pci
+storage:
+  files:
+  - path: /etc/modprobe.d/vfio-gpu.conf
+    mode: 0644
+    contents:
+      inline: |
+        softdep {{ gpu_driver_name }} pre: vfio-pci
+  - path: /etc/modules-load.d/vfio-pci.conf
+    mode: 0644
+    contents:
+      inline: |
+        vfio-pci

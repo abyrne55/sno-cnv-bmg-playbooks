@@ -1,0 +1,43 @@
+---
+- name: wait_cluster | Wait for cluster API to become reachable
+  kubernetes.core.k8s_info:
+    api_version: config.openshift.io/v1
+    kind: ClusterVersion
+    name: version
+  register: cv_result
+  until: cv_result is not failed
+  retries: "{{ wait_cluster_api_retries }}"
+  delay: "{{ wait_cluster_api_delay }}"
+
+- name: wait_cluster | Wait for ClusterVersion Available
+  kubernetes.core.k8s_info:
+    api_version: config.openshift.io/v1
+    kind: ClusterVersion
+    name: version
+  register: cv_result
+  until: >-
+    cv_result.resources | length > 0 and
+    cv_result.resources[0].status.conditions |
+    selectattr('type', 'equalto', 'Available') |
+    selectattr('status', 'equalto', 'True') | list | length > 0
+  retries: "{{ wait_cluster_api_retries }}"
+  delay: "{{ wait_cluster_api_delay }}"
+
+- name: wait_cluster | Wait for node Ready
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Node
+  register: node_result
+  until: >-
+    node_result.resources | length > 0 and
+    node_result.resources[0].status.conditions |
+    selectattr('type', 'equalto', 'Ready') |
+    selectattr('status', 'equalto', 'True') | list | length > 0
+  retries: "{{ wait_cluster_node_retries }}"
+  delay: "{{ wait_cluster_node_delay }}"
+
+- name: wait_cluster | Print cluster version
+  ansible.builtin.debug:
+    msg: >-
+      Cluster {{ cluster_name }} is up —
+      version {{ cv_result.resources[0].status.desired.version }}

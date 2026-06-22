@@ -1,0 +1,17 @@
+variant: openshift
+version: {{ butane_ocp_version }}
+metadata:
+  labels:
+    machineconfiguration.openshift.io/role: master
+  name: 90-var-virtstore-partition
+storage:
+  disks:
+  - device: {{ root_device }}
+    partitions:
+    - label: root
+      number: 4
+      size_mib: {{ root_partition_size_mib }}
+      resize: true
+    - label: virtstore
+      number: 5
+      size_mib: 0

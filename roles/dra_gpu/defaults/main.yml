@@ -1,0 +1,7 @@
+---
+dra_namespace: intel-gpu-resource-driver
+dra_driver_version: "0.10.0"
+dra_driver_chart: "oci://registry.example.com/intel-gpu-resource-driver"
+dra_release_name: intel-gpu-resource-driver
+dra_resourceslice_retries: 30
+dra_resourceslice_delay: 20

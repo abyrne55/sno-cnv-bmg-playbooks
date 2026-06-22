@@ -1,0 +1,39 @@
+---
+- name: Configure SNO cluster with CNV + BMG GPU
+  hosts: localhost
+  gather_facts: false
+
+  vars_files:
+    - vars/cluster.yml
+    - vars/vault.yml
+
+  environment:
+    K8S_AUTH_KUBECONFIG: "{{ build_dir }}/auth/kubeconfig"
+
+  roles:
+    - role: wait_cluster
+      tags: [wait]
+
+    - role: vfio_gpu
+      tags: [vfio]
+      when: gpu_access_mode == 'vfio'
+
+    - role: lvms
+      tags: [lvms]
+
+    - role: cnv
+      tags: [cnv]
+
+    - role: certmanager
+      tags: [certmanager]
+
+    - role: dra_gpu
+      tags: [dra]
+      when: gpu_access_mode == 'dra'
+
+    - role: bmg_vm
+      tags: [vm]
+      when: gpu_access_mode == 'vfio'
+
+    - role: verify
+      tags: [verify]

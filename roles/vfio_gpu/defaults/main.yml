@@ -1,0 +1,3 @@
+---
+vfio_mcp_retries: 60
+vfio_mcp_delay: 30

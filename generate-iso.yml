@@ -1,0 +1,12 @@
+---
+- name: Generate agent-based installer ISO
+  hosts: localhost
+  gather_facts: false
+
+  vars_files:
+    - vars/cluster.yml
+    - vars/vault.yml
+
+  roles:
+    - role: generate_iso
+      tags: [iso]

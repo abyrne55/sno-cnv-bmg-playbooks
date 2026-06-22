@@ -1,0 +1,9 @@
+variant: openshift
+version: {{ butane_ocp_version }}
+metadata:
+  labels:
+    machineconfiguration.openshift.io/role: master
+  name: 92-serial-console
+openshift:
+  kernel_arguments:
+  - console={{ serial_console }}
