@@ -1,8 +1,8 @@
 ---
 lvms_namespace: openshift-lvm-storage
-lvms_csv_retries: 30
+lvms_csv_retries: 60
 lvms_csv_delay: 20
-lvms_cluster_retries: 30
+lvms_cluster_retries: 45
 lvms_cluster_delay: 20
 lvms_thin_pool_size_percent: 90
 lvms_thin_pool_overprovision_ratio: 10
