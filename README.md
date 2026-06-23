@@ -197,6 +197,7 @@ openshift-install --dir build/<cluster> agent wait-for install-complete --log-le
 - **Do not** include `coreos.liveiso=` or `coreos.live.rootfs_url=` in the kernel args — these cause hangs when booting via kexec with a combined initrd
 - **`ignition.firstboot` and `ignition.platform.id=metal`** are required — without them, the Ignition config is silently skipped
 - Generate the ISO on your **workstation**, not the target host — `openshift-install` creates `auth/kubeconfig` alongside the ISO, and the target disk will be wiped
+- **Unbind VFIO devices before `kexec -e`** — if a PCI device is bound to `vfio-pci` (e.g. for GPU passthrough), the kexec transition will hang. Stop any VMs using the device, then unbind it: `echo <pci-addr> > /sys/bus/pci/drivers/vfio-pci/unbind`
 
 ## Known Issues
 
