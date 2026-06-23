@@ -28,7 +28,7 @@
     api_version: resource.k8s.io/v1beta1
     kind: ResourceSlice
   register: dra_gpu_rs_result
-  until: dra_gpu_rs_result.resources | length > 0
+  until: dra_gpu_rs_result.resources is defined and dra_gpu_rs_result.resources | length > 0
   retries: "{{ dra_gpu_resourceslice_retries }}"
   delay: "{{ dra_gpu_resourceslice_delay }}"
 

@@ -27,6 +27,7 @@
       - "operators.coreos.com/lvms-operator.{{ lvms_namespace }}"
   register: lvms_csv
   until: >-
+    lvms_csv.resources is defined and
     lvms_csv.resources | length > 0 and
     lvms_csv.resources[0].status.phase | default('') == 'Succeeded'
   retries: "{{ lvms_csv_retries }}"
@@ -45,6 +46,7 @@
     namespace: "{{ lvms_namespace }}"
   register: lvms_lvm_result
   until: >-
+    lvms_lvm_result.resources is defined and
     lvms_lvm_result.resources | length > 0 and
     lvms_lvm_result.resources[0].status.state | default('') == 'Ready'
   retries: "{{ lvms_cluster_retries }}"
@@ -56,7 +58,7 @@
     kind: StorageClass
     name: lvms-virtstore
   register: lvms_sc_result
-  until: lvms_sc_result.resources | length > 0
+  until: lvms_sc_result.resources is defined and lvms_sc_result.resources | length > 0
   retries: 10
   delay: 10
 

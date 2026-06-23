@@ -27,6 +27,7 @@
       - "operators.coreos.com/openshift-cert-manager-operator.{{ certmanager_namespace }}"
   register: certmanager_csv
   until: >-
+    certmanager_csv.resources is defined and
     certmanager_csv.resources | length > 0 and
     certmanager_csv.resources[0].status.phase | default('') == 'Succeeded'
   retries: "{{ certmanager_csv_retries }}"
@@ -42,7 +43,7 @@
     field_selectors:
       - status.phase=Running
   register: certmanager_pods
-  until: certmanager_pods.resources | length > 0
+  until: certmanager_pods.resources is defined and certmanager_pods.resources | length > 0
   retries: 30
   delay: 10
 
@@ -52,7 +53,7 @@
     kind: CustomResourceDefinition
     name: clusterissuers.cert-manager.io
   register: certmanager_ci_crd
-  until: certmanager_ci_crd.resources | length > 0
+  until: certmanager_ci_crd.resources is defined and certmanager_ci_crd.resources | length > 0
   retries: 15
   delay: 10
 
@@ -83,6 +84,7 @@
     namespace: openshift-ingress
   register: certmanager_apps_cert
   until: >-
+    certmanager_apps_cert.resources is defined and
     certmanager_apps_cert.resources | length > 0 and
     certmanager_apps_cert.resources[0].status.conditions |
     default([]) |
@@ -99,6 +101,7 @@
     namespace: openshift-config
   register: certmanager_api_cert
   until: >-
+    certmanager_api_cert.resources is defined and
     certmanager_api_cert.resources | length > 0 and
     certmanager_api_cert.resources[0].status.conditions |
     default([]) |
@@ -119,6 +122,13 @@
         defaultCertificate:
           name: apps-wildcard-tls
 
+- name: Record kube-apiserver revision before patching
+  kubernetes.core.k8s_info:
+    api_version: operator.openshift.io/v1
+    kind: KubeAPIServer
+    name: cluster
+  register: certmanager_kas_before
+
 - name: Patch APIServer with API cert
   kubernetes.core.k8s:
     state: patched
@@ -133,6 +143,25 @@
                 - "api.{{ cluster_name }}.{{ base_domain }}"
               servingCertificate:
                 name: api-tls
+  register: certmanager_api_patch
+
+- name: Wait for kube-apiserver revision to increment # noqa: no-handler
+  kubernetes.core.k8s_info:
+    api_version: operator.openshift.io/v1
+    kind: KubeAPIServer
+    name: cluster
+  register: certmanager_kas_after
+  vars:
+    _pre_rev: >-
+      {{ certmanager_kas_before.resources[0].status.nodeStatuses[0].currentRevision }}
+  until: >-
+    certmanager_kas_after.resources is defined and
+    certmanager_kas_after.resources | length > 0 and
+    certmanager_kas_after.resources[0].status.nodeStatuses[0].currentRevision | default(0) | int
+    > _pre_rev | int
+  retries: "{{ certmanager_co_retries }}"
+  delay: "{{ certmanager_co_delay }}"
+  when: certmanager_api_patch.changed
 
 - name: Wait for kube-apiserver ClusterOperator to settle
   kubernetes.core.k8s_info:
@@ -141,6 +170,7 @@
     name: kube-apiserver
   register: certmanager_co_result
   until: >-
+    certmanager_co_result.resources is defined and
     certmanager_co_result.resources | length > 0 and
     certmanager_co_result.resources[0].status.conditions |
     selectattr('type', 'equalto', 'Available') |
@@ -156,6 +186,16 @@
     path: "{{ build_dir }}/auth/kubeconfig"
     regexp: '^\s*certificate-authority-data:.*$'
     replace: ""
+
+- name: Wait for API to be reachable with new TLS cert
+  kubernetes.core.k8s_info:
+    api_version: config.openshift.io/v1
+    kind: ClusterVersion
+    name: version
+  register: certmanager_tls_check
+  until: certmanager_tls_check is not failed
+  retries: 30
+  delay: 20
 
 - name: Print status
   ansible.builtin.debug:

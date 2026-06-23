@@ -36,6 +36,7 @@
     name: master
   register: vfio_gpu_mcp_result
   until: >-
+    vfio_gpu_mcp_result.resources is defined and
     vfio_gpu_mcp_result.resources | length > 0 and
     vfio_gpu_mcp_result.resources[0].status.conditions |
     selectattr('type', 'equalto', 'Updated') |

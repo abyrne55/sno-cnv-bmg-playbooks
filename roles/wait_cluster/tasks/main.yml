@@ -16,6 +16,7 @@
     name: version
   register: wait_cluster_cv_result
   until: >-
+    wait_cluster_cv_result.resources is defined and
     wait_cluster_cv_result.resources | length > 0 and
     wait_cluster_cv_result.resources[0].status.conditions |
     selectattr('type', 'equalto', 'Available') |
@@ -29,6 +30,7 @@
     kind: Node
   register: wait_cluster_node_result
   until: >-
+    wait_cluster_node_result.resources is defined and
     wait_cluster_node_result.resources | length > 0 and
     wait_cluster_node_result.resources[0].status.conditions |
     selectattr('type', 'equalto', 'Ready') |

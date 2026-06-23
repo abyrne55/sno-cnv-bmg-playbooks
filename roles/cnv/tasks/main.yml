@@ -27,6 +27,7 @@
       - "operators.coreos.com/kubevirt-hyperconverged.{{ cnv_namespace }}"
   register: cnv_csv
   until: >-
+    cnv_csv.resources is defined and
     cnv_csv.resources | length > 0 and
     cnv_csv.resources[0].status.phase | default('') == 'Succeeded'
   retries: "{{ cnv_csv_retries }}"
@@ -38,7 +39,7 @@
     kind: CustomResourceDefinition
     name: hyperconvergeds.hco.kubevirt.io
   register: cnv_hco_crd
-  until: cnv_hco_crd.resources | length > 0
+  until: cnv_hco_crd.resources is defined and cnv_hco_crd.resources | length > 0
   retries: 15
   delay: 10
 
@@ -55,6 +56,7 @@
     namespace: "{{ cnv_namespace }}"
   register: cnv_hco_result
   until: >-
+    cnv_hco_result.resources is defined and
     cnv_hco_result.resources | length > 0 and
     cnv_hco_result.resources[0].status.conditions |
     default([]) |

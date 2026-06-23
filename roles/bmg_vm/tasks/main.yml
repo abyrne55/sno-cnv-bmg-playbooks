@@ -76,6 +76,7 @@
     namespace: "{{ vm_namespace }}"
   register: bmg_vm_vmi_result
   until: >-
+    bmg_vm_vmi_result.resources is defined and
     bmg_vm_vmi_result.resources | length > 0 and
     bmg_vm_vmi_result.resources[0].status.phase | default('') == 'Running'
   retries: "{{ bmg_vm_retries }}"
