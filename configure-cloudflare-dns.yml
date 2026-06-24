@@ -20,6 +20,7 @@
       community.general.python_requirements_info:
         dependencies:
           - dnspython
+          - paramiko
       register: preflight_python
 
     - name: Fail if Python packages missing
@@ -205,6 +206,23 @@
           SSHFP {{ cluster_name }}.{{ base_domain }}
           → {{ sshfp_verification | default("(no response yet — propagation may take a moment)", true) }}
       when: sshfp_enabled and dns_state == "present"
+
+    - name: Configure local SSH client for cluster node
+      community.general.ssh_config:
+        user: "{{ lookup('env', 'USER') }}"
+        host: "{{ cluster_name }}"
+        hostname: "{{ cluster_name }}.{{ base_domain }}"
+        remote_user: core
+        identities_only: true
+        strict_host_key_checking: "yes"
+        state: "{{ dns_state }}"
+        other_options:
+          hostkeyalias: "{{ cluster_name }}.{{ base_domain }}"
+          pubkeyauthentication: "yes"
+          preferredauthentications: publickey
+          verifyhostkeydns: "yes"
+          checkhostip: "yes"
+      when: sshfp_enabled
 
     - name: Show summary
       ansible.builtin.debug:
