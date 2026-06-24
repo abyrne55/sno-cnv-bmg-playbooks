@@ -18,13 +18,13 @@ Reserve a bare-metal machine via Beaker. Note its hostname, MAC address, NIC nam
 
 DNS records (`<cluster>.<domain>`, `api.<cluster>.<domain>`, `api-int.<cluster>.<domain>`, `*.apps.<cluster>.<domain>`) are created automatically by `configure-cloudflare-dns.yml`. You need a Cloudflare API token with `Zone:DNS:Edit` permissions — set it in `vars/vault.yml` as `vault_cloudflare_api_token`.
 
-When `sshfp_enabled` is `true` (the default), the DNS playbook also pre-generates ed25519 and ecdsa SSH host keys, publishes their SHA-256 fingerprints as SSHFP DNS records, and the ISO playbook embeds the keys into the node via MachineConfig. This enables SSH host key verification via DNS (`VerifyHostKeyDNS yes` in `~/.ssh/config`) from the very first connection.
+When `sshfp_enabled` is `true` (the default), the DNS playbook also pre-generates ed25519 and ecdsa SSH host keys, publishes their SHA-256 fingerprints as SSHFP DNS records, and the ISO playbook embeds the keys into the node via MachineConfig. It also adds a Host entry to `~/.ssh/config` so that `ssh <cluster_name>` resolves via the FQDN, verifies the host key against SSHFP records, and uses the right auth settings. The entry is removed automatically when running with `-e dns_state=absent`.
 
 ### Tools
 
 Install on workstation:
 
-- `ansible` (with `kubernetes` and `dnspython` Python packages)
+- `ansible` (with `kubernetes`, `dnspython`, and `paramiko` Python packages)
 - `oc`
 - `butane`
 - `openshift-install`
