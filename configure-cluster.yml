@@ -42,7 +42,11 @@
 
     - role: vfio_gpu
       tags: [vfio]
-      when: gpu_access_mode == 'vfio'
+      when: gpu_access_mode == 'vfio' and not (gpu_sriov_enabled | default(false))
+
+    - role: sriov_gpu
+      tags: [sriov]
+      when: gpu_sriov_enabled | default(false)
 
     - role: lvms
       tags: [lvms]

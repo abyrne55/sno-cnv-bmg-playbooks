@@ -1,0 +1,3 @@
+---
+sriov_gpu_mcp_retries: 60
+sriov_gpu_mcp_delay: 30

@@ -54,6 +54,7 @@ service_network_cidr: 172.30.0.0/16
 gpu_resource_name: devices.kubevirt.io/bmg-g31
 gpu_driver_name: xe
 gpu_access_mode: vfio  # vfio or dra
+gpu_sriov_enabled: false
 
 # Operator channels
 lvms_channel: stable-4.21

@@ -1,0 +1,12 @@
+apiVersion: machineconfiguration.openshift.io/v1
+kind: MachineConfig
+metadata:
+  labels:
+    machineconfiguration.openshift.io/role: master
+  name: 94-sriov-gpu
+spec:
+  config:
+    ignition:
+      version: 3.5.0
+  kernelArguments:
+    - pci=realloc

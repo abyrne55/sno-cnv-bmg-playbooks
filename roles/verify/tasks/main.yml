@@ -79,12 +79,12 @@
   register: verify_gpu_lspci
   changed_when: false
   failed_when: false
-  when: gpu_access_mode == 'vfio' and verify_gpu_debug
+  when: gpu_access_mode == 'vfio' and not (gpu_sriov_enabled | default(false)) and verify_gpu_debug
 
 - name: Print GPU binding
   ansible.builtin.debug:
     msg: "{{ verify_gpu_lspci.stdout_lines }}"
-  when: gpu_access_mode == 'vfio' and verify_gpu_debug and verify_gpu_lspci.rc == 0
+  when: gpu_access_mode == 'vfio' and not (gpu_sriov_enabled | default(false)) and verify_gpu_debug and verify_gpu_lspci.rc == 0
 
 - name: Check ResourceSlice (DRA mode)
   kubernetes.core.k8s_info:
