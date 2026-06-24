@@ -50,6 +50,9 @@ cluster_network_cidr: 10.128.0.0/14
 cluster_network_host_prefix: 23
 service_network_cidr: 172.30.0.0/16
 
+# SSH host key fingerprint DNS records
+sshfp_enabled: true
+
 # GPU
 gpu_resource_name: devices.kubevirt.io/bmg-g31
 gpu_driver_name: xe

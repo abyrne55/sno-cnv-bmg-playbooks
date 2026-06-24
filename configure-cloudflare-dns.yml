@@ -97,8 +97,118 @@
         label: "{{ item.record }}"
       when: dns_state == "present"
 
+    # ── SSHFP records ──────────────────────────────────────────────
+
+    - name: Create SSH key directory
+      ansible.builtin.file:
+        path: "{{ build_dir }}/ssh"
+        state: directory
+        mode: "0700"
+      when: sshfp_enabled and dns_state == "present"
+
+    - name: Generate SSH host keys
+      ansible.builtin.command:
+        cmd: ssh-keygen -t {{ item }} -f {{ build_dir }}/ssh/ssh_host_{{ item }}_key -N ""
+        creates: "{{ build_dir }}/ssh/ssh_host_{{ item }}_key"
+      loop:
+        - ed25519
+        - ecdsa
+      when: sshfp_enabled and dns_state == "present"
+
+    - name: Check if SSH keys exist (for deletion)
+      ansible.builtin.stat:
+        path: "{{ build_dir }}/ssh/ssh_host_{{ item }}_key.pub"
+      loop:
+        - ed25519
+        - ecdsa
+      register: sshfp_key_check
+      when: sshfp_enabled and dns_state == "absent"
+
+    - name: Set SSH keys existence flag
+      ansible.builtin.set_fact:
+        sshfp_keys_exist: >-
+          {{ sshfp_key_check.results | default([])
+             | selectattr('stat', 'defined')
+             | selectattr('stat.exists')
+             | list | length > 0 }}
+      when: sshfp_enabled and dns_state == "absent"
+
+    - name: Skip SSHFP deletion (no keys on disk)
+      ansible.builtin.debug:
+        msg: >-
+          No SSH host keys found in {{ build_dir }}/ssh/ —
+          skipping SSHFP record deletion. If records exist in CloudFlare,
+          remove them manually or regenerate keys first.
+      when: sshfp_enabled and dns_state == "absent" and not sshfp_keys_exist
+
+    - name: Compute SSHFP fingerprints (SHA-256 only)
+      ansible.builtin.shell:
+        cmd: >-
+          set -o pipefail &&
+          ssh-keygen -r {{ cluster_name }}.{{ base_domain }}
+          -f {{ build_dir }}/ssh/ssh_host_{{ item }}_key.pub
+          | awk '$5 == 2 {print $4, $5, $6}'
+        executable: /bin/bash
+      loop:
+        - ed25519
+        - ecdsa
+      register: sshfp_raw
+      changed_when: false
+      when: >-
+        sshfp_enabled and
+        (dns_state == "present" or
+         (dns_state == "absent" and sshfp_keys_exist | default(false)))
+
+    - name: Build SSHFP record list
+      ansible.builtin.set_fact:
+        sshfp_lines: >-
+          {{ sshfp_raw.results
+             | selectattr('stdout_lines', 'defined')
+             | map(attribute='stdout_lines')
+             | flatten | list }}
+      when: >-
+        sshfp_enabled and
+        (dns_state == "present" or
+         (dns_state == "absent" and sshfp_keys_exist | default(false)))
+
+    - name: Manage SSHFP DNS records
+      community.general.cloudflare_dns:
+        zone: "{{ base_domain }}"
+        record: "{{ cluster_name }}.{{ base_domain }}"
+        type: SSHFP
+        algorithm: "{{ item.split()[0] | int }}"
+        hash_type: "{{ item.split()[1] | int }}"
+        value: "{{ item.split()[2] }}"
+        ttl: 1
+        solo: false
+        state: "{{ dns_state }}"
+        api_token: "{{ vault_cloudflare_api_token }}"
+      loop: "{{ sshfp_lines }}"
+      loop_control:
+        label: "algo={{ item.split()[0] }} hash={{ item.split()[1] }}"
+      when: >-
+        sshfp_enabled and
+        (dns_state == "present" or
+         (dns_state == "absent" and sshfp_keys_exist | default(false)))
+
+    - name: Verify SSHFP DNS resolution
+      ansible.builtin.set_fact:
+        sshfp_verification: >-
+          {{ lookup("community.general.dig",
+                    cluster_name + "." + base_domain + ".",
+                    "qtype=SSHFP", "@1.1.1.1", errors="ignore") }}
+      when: sshfp_enabled and dns_state == "present"
+
+    - name: Show SSHFP verification results
+      ansible.builtin.debug:
+        msg: >-
+          SSHFP {{ cluster_name }}.{{ base_domain }}
+          → {{ sshfp_verification | default("(no response yet — propagation may take a moment)", true) }}
+      when: sshfp_enabled and dns_state == "present"
+
     - name: Show summary
       ansible.builtin.debug:
         msg: >-
           DNS records {{ (dns_state == "present") | ternary("created", "removed") }}
-          for {{ cluster_name }}.{{ base_domain }}.
+          for {{ cluster_name }}.{{ base_domain }}
+          {{ (sshfp_enabled) | ternary("(including SSHFP)", "") }}.

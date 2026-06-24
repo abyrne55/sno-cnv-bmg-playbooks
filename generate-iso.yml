@@ -10,6 +10,13 @@
   vars:
     openshift_install_binary: openshift-install
     butane_binary: butane
+    butane_configs:
+      - 90-var-virtstore-partition.bu
+      - 91-iommu-pt.bu
+      - 92-serial-console.bu
+      - 93-sysrq.bu
+    butane_configs_sshfp:
+      - 95-ssh-host-keys.bu
 
   pre_tasks:
     - name: Check required CLI tools
@@ -28,6 +35,25 @@
           Required tool '{{ item.item }}' not found in PATH.
       when: item.rc != 0
       loop: "{{ preflight_cli.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: Check SSH host keys exist for SSHFP
+      ansible.builtin.stat:
+        path: "{{ build_dir }}/ssh/ssh_host_{{ item }}_key"
+      loop:
+        - ed25519
+        - ecdsa
+      register: sshfp_key_preflight
+      when: sshfp_enabled
+
+    - name: Fail if SSH host keys missing
+      ansible.builtin.fail:
+        msg: >-
+          SSH host key '{{ item.stat.path }}' not found.
+          Run configure-cloudflare-dns.yml first to generate keys and SSHFP records.
+      when: sshfp_enabled and not item.stat.exists
+      loop: "{{ sshfp_key_preflight.results }}"
       loop_control:
         label: "{{ item.item }}"
 
@@ -77,11 +103,7 @@
         src: "{{ item }}.j2"
         dest: "{{ build_dir }}/{{ item }}"
         mode: "0644"
-      loop:
-        - 90-var-virtstore-partition.bu
-        - 91-iommu-pt.bu
-        - 92-serial-console.bu
-        - 93-sysrq.bu
+      loop: "{{ butane_configs + (butane_configs_sshfp if sshfp_enabled else []) }}"
       when: not existing_iso.stat.exists
 
     - name: Compile Butane configs to MachineConfig YAML
@@ -90,11 +112,7 @@
           {{ butane_binary }} --strict
           {{ build_dir }}/{{ item }}
           -o {{ build_dir }}/openshift/{{ item | regex_replace('\.bu$', '.yaml') }}
-      loop:
-        - 90-var-virtstore-partition.bu
-        - 91-iommu-pt.bu
-        - 92-serial-console.bu
-        - 93-sysrq.bu
+      loop: "{{ butane_configs + (butane_configs_sshfp if sshfp_enabled else []) }}"
       changed_when: true
       when: not existing_iso.stat.exists
 

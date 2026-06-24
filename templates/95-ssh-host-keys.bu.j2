@@ -1,0 +1,28 @@
+variant: openshift
+version: {{ butane_ocp_version }}
+metadata:
+  labels:
+    machineconfiguration.openshift.io/role: master
+  name: 95-ssh-host-keys
+storage:
+  files:
+  - path: /etc/ssh/ssh_host_ed25519_key
+    mode: 0600
+    contents:
+      inline: |
+{{ lookup('file', build_dir + '/ssh/ssh_host_ed25519_key') | indent(8, true) }}
+  - path: /etc/ssh/ssh_host_ed25519_key.pub
+    mode: 0644
+    contents:
+      inline: |
+{{ lookup('file', build_dir + '/ssh/ssh_host_ed25519_key.pub') | indent(8, true) }}
+  - path: /etc/ssh/ssh_host_ecdsa_key
+    mode: 0600
+    contents:
+      inline: |
+{{ lookup('file', build_dir + '/ssh/ssh_host_ecdsa_key') | indent(8, true) }}
+  - path: /etc/ssh/ssh_host_ecdsa_key.pub
+    mode: 0644
+    contents:
+      inline: |
+{{ lookup('file', build_dir + '/ssh/ssh_host_ecdsa_key.pub') | indent(8, true) }}

@@ -4,7 +4,7 @@ Ansible automation for provisioning a Single Node OpenShift (SNO) cluster with O
 
 Three playbooks cover the full lifecycle:
 
-1. **`configure-cloudflare-dns.yml`** (Pre-deploy) — creates Cloudflare DNS records for the cluster
+1. **`configure-cloudflare-dns.yml`** (Pre-deploy) — creates Cloudflare DNS A records and SSHFP records (with pre-generated SSH host keys) for the cluster
 2. **`generate-iso.yml`** (Day-0) — generates an agent-based installer ISO with MachineConfigs baked in
 3. **`configure-cluster.yml`** (Day-2) — installs operators, configures GPU passthrough, provisions a VM
 
@@ -17,6 +17,8 @@ Reserve a bare-metal machine via Beaker. Note its hostname, MAC address, NIC nam
 ### DNS Records
 
 DNS records (`<cluster>.<domain>`, `api.<cluster>.<domain>`, `api-int.<cluster>.<domain>`, `*.apps.<cluster>.<domain>`) are created automatically by `configure-cloudflare-dns.yml`. You need a Cloudflare API token with `Zone:DNS:Edit` permissions — set it in `vars/vault.yml` as `vault_cloudflare_api_token`.
+
+When `sshfp_enabled` is `true` (the default), the DNS playbook also pre-generates ed25519 and ecdsa SSH host keys, publishes their SHA-256 fingerprints as SSHFP DNS records, and the ISO playbook embeds the keys into the node via MachineConfig. This enables SSH host key verification via DNS (`VerifyHostKeyDNS yes` in `~/.ssh/config`) from the very first connection.
 
 ### Tools
 
@@ -84,6 +86,12 @@ ansible-playbook configure-cluster.yml --check --diff --ask-vault-pass
 ### Cluster Variables (`vars/cluster.yml`)
 
 Copy `vars/cluster.yml.example` to `vars/cluster.yml` and edit. Variables at the top of the file are site-specific and must be changed; variables under "Defaults" are usually fine as-is.
+
+| Default Variable | Description |
+|------------------|-------------|
+| `sshfp_enabled` | Publish SSHFP DNS records and embed pre-generated SSH host keys in the ISO (default: `true`) |
+| `gpu_access_mode` | GPU passthrough method: `vfio` or `dra` (default: `vfio`) |
+| `gpu_sriov_enabled` | Enable SR-IOV for the GPU (default: `false`) |
 
 ### Vault Variables (`vars/vault.yml`)
 
