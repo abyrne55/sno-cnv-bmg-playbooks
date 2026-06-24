@@ -150,6 +150,7 @@
     api_version: operator.openshift.io/v1
     kind: KubeAPIServer
     name: cluster
+    validate_certs: false
   register: certmanager_kas_after
   vars:
     _pre_rev: >-
@@ -168,6 +169,7 @@
     api_version: config.openshift.io/v1
     kind: ClusterOperator
     name: kube-apiserver
+    validate_certs: false
   register: certmanager_co_result
   until: >-
     certmanager_co_result.resources is defined and
