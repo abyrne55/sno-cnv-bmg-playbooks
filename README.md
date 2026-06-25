@@ -2,11 +2,12 @@
 
 Ansible automation for provisioning a Single Node OpenShift (SNO) cluster with OpenShift Virtualization (CNV), LVMS storage, cert-manager TLS, and Intel BattleMage GPU passthrough.
 
-Three playbooks cover the full lifecycle:
+Four playbooks cover the full lifecycle:
 
 1. **`configure-cloudflare-dns.yml`** (Pre-deploy) — creates Cloudflare DNS records for the cluster
 2. **`generate-iso.yml`** (Day-0) — generates an agent-based installer ISO with MachineConfigs baked in
 3. **`configure-cluster.yml`** (Day-2) — installs operators, configures GPU passthrough, provisions a VM
+4. **`teardown-cluster.yml`** (Teardown) — removes selected day-2 components, returning the cluster to a baseline
 
 ## Prerequisites
 
@@ -58,6 +59,19 @@ ansible-playbook configure-cluster.yml --ask-vault-pass
 
 ### Teardown
 
+Remove day-2 components from the cluster (keeps LVMS, cert-manager, SR-IOV, and day-0 MachineConfigs):
+
+```bash
+# Full teardown: remove all teardown-managed components
+ansible-playbook teardown-cluster.yml --ask-vault-pass
+
+# Selective: remove only CNV
+ansible-playbook teardown-cluster.yml --ask-vault-pass --tags cnv
+
+# Dry run: preview changes without applying
+ansible-playbook teardown-cluster.yml --check --diff --ask-vault-pass
+```
+
 To remove DNS records when decommissioning a cluster:
 
 ```bash
@@ -77,6 +91,9 @@ ansible-playbook generate-iso.yml --check --diff --ask-vault-pass
 
 # Day-2: renders day-2 YAMLs, shows k8s module diffs but skips resource creation
 ansible-playbook configure-cluster.yml --check --diff --ask-vault-pass
+
+# Teardown: shows what would be removed without deleting anything
+ansible-playbook teardown-cluster.yml --check --diff --ask-vault-pass
 ```
 
 ## Variables
@@ -96,7 +113,7 @@ Copy `vars/vault.yml.example` to `vars/vault.yml`, populate, and encrypt with `a
 
 ## Tags
 
-Tags apply to `configure-cluster.yml` only (`generate-iso.yml` and `configure-cloudflare-dns.yml` run as flat task lists with no tags).
+### `configure-cluster.yml`
 
 | Tag | Roles | Description |
 |-----|-------|-------------|
@@ -108,6 +125,15 @@ Tags apply to `configure-cluster.yml` only (`generate-iso.yml` and `configure-cl
 | `dra` | `dra_gpu` | Install Intel DRA GPU driver (Helm) |
 | `vm` | `bmg_vm` | Create RHEL 10 BMG GPU VM |
 | `verify` | `verify` | Print cluster/operator/cert/VM status |
+
+### `teardown-cluster.yml`
+
+| Tag | Description |
+|-----|-------------|
+| `smollm` | Remove smollm inference pods, ResourceClaimTemplates, ResourceClaims |
+| `gpu` | Uninstall Intel GPU Base Operator (Helm releases, CRDs, RBAC, namespace) |
+| `cnv` | Remove CNV operator, HyperConverged CR, CRDs, webhooks, namespace |
+| `assisted` | Delete assisted-installer namespace |
 
 ```bash
 # Run specific tags

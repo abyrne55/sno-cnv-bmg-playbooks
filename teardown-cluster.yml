@@ -1,0 +1,395 @@
+---
+- name: Teardown SNO cluster components
+  hosts: localhost
+  gather_facts: false
+
+  vars_files:
+    - vars/cluster.yml
+    - vars/vault.yml
+
+  environment:
+    K8S_AUTH_KUBECONFIG: "{{ build_dir }}/auth/kubeconfig"
+
+  pre_tasks:
+    - name: Check oc CLI is available
+      ansible.builtin.command:
+        cmd: which oc
+      changed_when: false
+      failed_when: false
+      register: preflight_oc
+
+    - name: Fail if oc missing
+      ansible.builtin.fail:
+        msg: "Required tool 'oc' not found in PATH."
+      when: preflight_oc.rc != 0
+
+    - name: Check required Python packages
+      community.general.python_requirements_info:
+        dependencies:
+          - kubernetes
+      register: preflight_python
+
+    - name: Fail if Python packages missing
+      ansible.builtin.fail:
+        msg: >-
+          Missing Python packages: {{ preflight_python.not_found | join(', ') }}.
+          Install with: pip install {{ preflight_python.not_found | join(' ') }}
+      when: preflight_python.not_found | length > 0
+
+  tasks:
+    # ── smollm ────────────────────────────────────────────────────
+    - name: Remove smollm inference pods and resource claims
+      tags: [smollm]
+      block:
+        - name: Look up smollm pods
+          kubernetes.core.k8s_info:
+            api_version: v1
+            kind: Pod
+            namespace: default
+            label_selectors:
+              - app=smollm-vf-probe
+          register: smollm_pods
+
+        - name: Delete smollm pods
+          kubernetes.core.k8s:
+            state: absent
+            api_version: v1
+            kind: Pod
+            namespace: default
+            name: "{{ item.metadata.name }}"
+          loop: "{{ smollm_pods.resources }}"
+          loop_control:
+            label: "{{ item.metadata.name }}"
+          when: smollm_pods.resources | length > 0
+
+        - name: Look up smollm ResourceClaimTemplates
+          kubernetes.core.k8s_info:
+            api_version: resource.k8s.io/v1
+            kind: ResourceClaimTemplate
+            namespace: default
+          register: smollm_rcts
+
+        - name: Delete smollm ResourceClaimTemplates
+          kubernetes.core.k8s:
+            state: absent
+            api_version: resource.k8s.io/v1
+            kind: ResourceClaimTemplate
+            namespace: default
+            name: "{{ item.metadata.name }}"
+          loop: "{{ smollm_rcts.resources | selectattr('metadata.name', 'match', '^smollm-') | list }}"
+          loop_control:
+            label: "{{ item.metadata.name }}"
+          when: smollm_rcts.resources | length > 0
+
+        - name: Look up smollm ResourceClaims
+          kubernetes.core.k8s_info:
+            api_version: resource.k8s.io/v1
+            kind: ResourceClaim
+            namespace: default
+          register: smollm_rcs
+
+        - name: Delete smollm ResourceClaims
+          kubernetes.core.k8s:
+            state: absent
+            api_version: resource.k8s.io/v1
+            kind: ResourceClaim
+            namespace: default
+            name: "{{ item.metadata.name }}"
+          loop: "{{ smollm_rcs.resources | selectattr('metadata.name', 'match', '^smollm-') | list }}"
+          loop_control:
+            label: "{{ item.metadata.name }}"
+          when: smollm_rcs.resources | length > 0
+
+    # ── Intel GPU Base Operator ───────────────────────────────────
+    - name: Remove Intel GPU Base Operator
+      tags: [gpu]
+      block:
+        - name: Uninstall gpu-base-operator-policy Helm release
+          kubernetes.core.helm:
+            name: gpu-base-operator-policy
+            release_namespace: intel-gpu-base-operator
+            state: absent
+            wait: true
+
+        - name: Uninstall gpu-base-operator Helm release
+          kubernetes.core.helm:
+            name: gpu-base-operator
+            release_namespace: intel-gpu-base-operator
+            state: absent
+            wait: true
+
+        - name: Delete GPU DeviceClasses
+          kubernetes.core.k8s:
+            state: absent
+            api_version: resource.k8s.io/v1
+            kind: DeviceClass
+            name: "{{ item }}"
+          loop:
+            - gpu.intel.com
+            - gpu-vfio.intel.com
+
+        - name: Delete GPU SCCs
+          kubernetes.core.k8s:
+            state: absent
+            api_version: security.openshift.io/v1
+            kind: SecurityContextConstraints
+            name: "{{ item }}"
+          loop:
+            - gpu-dra-gpu-dra-scc
+            - gpu-dra-xpu-manager-scc
+
+        - name: Look up GPU ClusterRoles
+          kubernetes.core.k8s_info:
+            api_version: rbac.authorization.k8s.io/v1
+            kind: ClusterRole
+          register: gpu_clusterroles
+
+        - name: Delete GPU ClusterRoles
+          kubernetes.core.k8s:
+            state: absent
+            api_version: rbac.authorization.k8s.io/v1
+            kind: ClusterRole
+            name: "{{ item.metadata.name }}"
+          loop: >-
+            {{ gpu_clusterroles.resources
+               | selectattr('metadata.name', 'match', '^(gpu-base-operator-|gpu-dra-|gpufirmwareupdate-)')
+               | list }}
+          loop_control:
+            label: "{{ item.metadata.name }}"
+          when: gpu_clusterroles.resources | length > 0
+
+        - name: Look up GPU ClusterRoleBindings
+          kubernetes.core.k8s_info:
+            api_version: rbac.authorization.k8s.io/v1
+            kind: ClusterRoleBinding
+          register: gpu_clusterrolebindings
+
+        - name: Delete GPU ClusterRoleBindings
+          kubernetes.core.k8s:
+            state: absent
+            api_version: rbac.authorization.k8s.io/v1
+            kind: ClusterRoleBinding
+            name: "{{ item.metadata.name }}"
+          loop: >-
+            {{ gpu_clusterrolebindings.resources
+               | selectattr('metadata.name', 'match', '^(gpu-base-operator-|gpu-dra-|gpufirmwareupdate-)')
+               | list }}
+          loop_control:
+            label: "{{ item.metadata.name }}"
+          when: gpu_clusterrolebindings.resources | length > 0
+
+        - name: Delete GPU CRDs
+          kubernetes.core.k8s:
+            state: absent
+            api_version: apiextensions.k8s.io/v1
+            kind: CustomResourceDefinition
+            name: "{{ item }}"
+          loop:
+            - clusterpolicies.intel.com
+            - gpufirmwareupdates.intel.com
+            - nodefeaturegroups.nfd.k8s-sigs.io
+            - nodefeaturerules.nfd.k8s-sigs.io
+            - nodefeatures.nfd.k8s-sigs.io
+
+        - name: Look up GPU webhook configurations
+          kubernetes.core.k8s_info:
+            api_version: admissionregistration.k8s.io/v1
+            kind: "{{ item }}"
+          register: gpu_webhooks
+          loop:
+            - ValidatingWebhookConfiguration
+            - MutatingWebhookConfiguration
+
+        - name: Delete GPU webhook configurations
+          kubernetes.core.k8s:
+            state: absent
+            api_version: admissionregistration.k8s.io/v1
+            kind: "{{ item.0.item }}"
+            name: "{{ item.1.metadata.name }}"
+          loop: >-
+            {{ gpu_webhooks.results
+               | subelements('resources') }}
+          loop_control:
+            label: "{{ item.0.item }}/{{ item.1.metadata.name }}"
+          when: item.1.metadata.name is match('^intel-gpu-base-operator-')
+
+        - name: Delete intel-gpu-base-operator namespace
+          kubernetes.core.k8s:
+            state: absent
+            api_version: v1
+            kind: Namespace
+            name: intel-gpu-base-operator
+
+        - name: Wait for intel-gpu-base-operator namespace termination
+          kubernetes.core.k8s_info:
+            api_version: v1
+            kind: Namespace
+            name: intel-gpu-base-operator
+          register: gpu_ns
+          until: gpu_ns.resources | length == 0
+          retries: 60
+          delay: 10
+          when: not ansible_check_mode
+
+    # ── CNV (OpenShift Virtualization) ────────────────────────────
+    - name: Remove CNV operator and resources
+      tags: [cnv]
+      block:
+        - name: Check if HyperConverged exists
+          kubernetes.core.k8s_info:
+            api_version: hco.kubevirt.io/v1
+            kind: HyperConverged
+            name: kubevirt-hyperconverged
+            namespace: openshift-cnv
+          register: cnv_hco
+          failed_when: false
+
+        - name: Delete HyperConverged CR
+          kubernetes.core.k8s:
+            state: absent
+            api_version: hco.kubevirt.io/v1
+            kind: HyperConverged
+            name: kubevirt-hyperconverged
+            namespace: openshift-cnv
+          when: cnv_hco.resources | default([]) | length > 0
+
+        - name: Wait for HyperConverged removal
+          kubernetes.core.k8s_info:
+            api_version: hco.kubevirt.io/v1
+            kind: HyperConverged
+            name: kubevirt-hyperconverged
+            namespace: openshift-cnv
+          register: cnv_hco_wait
+          until: cnv_hco_wait.resources | default([]) | length == 0
+          retries: 60
+          delay: 10
+          when:
+            - not ansible_check_mode
+            - cnv_hco.resources | default([]) | length > 0
+
+        - name: Delete CNV Subscription
+          kubernetes.core.k8s:
+            state: absent
+            api_version: operators.coreos.com/v1alpha1
+            kind: Subscription
+            name: kubevirt-hyperconverged
+            namespace: openshift-cnv
+
+        - name: Look up CNV CSVs
+          kubernetes.core.k8s_info:
+            api_version: operators.coreos.com/v1alpha1
+            kind: ClusterServiceVersion
+            namespace: openshift-cnv
+          register: cnv_csvs
+
+        - name: Delete CNV CSVs
+          kubernetes.core.k8s:
+            state: absent
+            api_version: operators.coreos.com/v1alpha1
+            kind: ClusterServiceVersion
+            namespace: openshift-cnv
+            name: "{{ item.metadata.name }}"
+          loop: >-
+            {{ cnv_csvs.resources
+               | selectattr('metadata.name', 'match', '^kubevirt-')
+               | list }}
+          loop_control:
+            label: "{{ item.metadata.name }}"
+          when: cnv_csvs.resources | length > 0
+
+        - name: Delete CNV OperatorGroup
+          kubernetes.core.k8s:
+            state: absent
+            api_version: operators.coreos.com/v1
+            kind: OperatorGroup
+            name: kubevirt-hyperconverged-group
+            namespace: openshift-cnv
+
+        - name: Delete openshift-cnv namespace
+          kubernetes.core.k8s:
+            state: absent
+            api_version: v1
+            kind: Namespace
+            name: openshift-cnv
+
+        - name: Wait for openshift-cnv namespace termination
+          kubernetes.core.k8s_info:
+            api_version: v1
+            kind: Namespace
+            name: openshift-cnv
+          register: cnv_ns
+          until: cnv_ns.resources | length == 0
+          retries: 60
+          delay: 10
+          when: not ansible_check_mode
+
+        - name: Look up CNV CRDs
+          kubernetes.core.k8s_info:
+            api_version: apiextensions.k8s.io/v1
+            kind: CustomResourceDefinition
+          register: cnv_crds
+
+        - name: Delete CNV CRDs
+          kubernetes.core.k8s:
+            state: absent
+            api_version: apiextensions.k8s.io/v1
+            kind: CustomResourceDefinition
+            name: "{{ item.metadata.name }}"
+          loop: >-
+            {{ cnv_crds.resources
+               | selectattr('metadata.name', 'search', '\.kubevirt\.io$')
+               | list }}
+          loop_control:
+            label: "{{ item.metadata.name }}"
+          when: cnv_crds.resources | length > 0
+
+        - name: Look up CNV ValidatingWebhookConfigurations
+          kubernetes.core.k8s_info:
+            api_version: admissionregistration.k8s.io/v1
+            kind: ValidatingWebhookConfiguration
+          register: cnv_vwcs
+
+        - name: Delete CNV ValidatingWebhookConfigurations
+          kubernetes.core.k8s:
+            state: absent
+            api_version: admissionregistration.k8s.io/v1
+            kind: ValidatingWebhookConfiguration
+            name: "{{ item.metadata.name }}"
+          loop: >-
+            {{ cnv_vwcs.resources
+               | selectattr('metadata.name', 'search', '(kubevirt|hco|ssp|hostpath-provisioner)')
+               | list }}
+          loop_control:
+            label: "{{ item.metadata.name }}"
+          when: cnv_vwcs.resources | length > 0
+
+        - name: Look up CNV MutatingWebhookConfigurations
+          kubernetes.core.k8s_info:
+            api_version: admissionregistration.k8s.io/v1
+            kind: MutatingWebhookConfiguration
+          register: cnv_mwcs
+
+        - name: Delete CNV MutatingWebhookConfigurations
+          kubernetes.core.k8s:
+            state: absent
+            api_version: admissionregistration.k8s.io/v1
+            kind: MutatingWebhookConfiguration
+            name: "{{ item.metadata.name }}"
+          loop: >-
+            {{ cnv_mwcs.resources
+               | selectattr('metadata.name', 'search', '(kubevirt|hco|ssp|hostpath-provisioner)')
+               | list }}
+          loop_control:
+            label: "{{ item.metadata.name }}"
+          when: cnv_mwcs.resources | length > 0
+
+    # ── assisted-installer ────────────────────────────────────────
+    - name: Remove assisted-installer namespace
+      tags: [assisted]
+      block:
+        - name: Delete assisted-installer namespace
+          kubernetes.core.k8s:
+            state: absent
+            api_version: v1
+            kind: Namespace
+            name: assisted-installer
