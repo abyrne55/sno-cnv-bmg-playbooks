@@ -46,3 +46,4 @@
     msg: >-
       Cluster {{ cluster_name }} is up —
       version {{ wait_cluster_cv_result.resources[0].status.desired.version }}
+  when: not ansible_check_mode

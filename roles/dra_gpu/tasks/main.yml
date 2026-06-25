@@ -36,3 +36,4 @@
 - name: Print status
   ansible.builtin.debug:
     msg: "Intel DRA GPU driver deployed — {{ dra_gpu_rs_result.resources | length }} ResourceSlice(s) found"
+  when: not ansible_check_mode

@@ -18,16 +18,19 @@
       {{ build_dir }}/rendered/94-intel-gpu.bu
       -o {{ build_dir }}/rendered/94-intel-gpu.yaml
   changed_when: true
+  when: not ansible_check_mode
 
 - name: Read compiled MachineConfig
   ansible.builtin.slurp:
     src: "{{ build_dir }}/rendered/94-intel-gpu.yaml"
   register: sriov_gpu_mc_content
+  when: not ansible_check_mode
 
 - name: Apply Intel GPU MachineConfig
   kubernetes.core.k8s:
     state: present
     definition: "{{ sriov_gpu_mc_content.content | b64decode | from_yaml }}"
+  when: not ansible_check_mode
 
 - name: Wait for MachineConfigPool master to finish updating
   kubernetes.core.k8s_info:
