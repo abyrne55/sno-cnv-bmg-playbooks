@@ -133,6 +133,7 @@ Copy `vars/vault.yml.example` to `vars/vault.yml`, populate, and encrypt with `a
 | `smollm` | Remove smollm inference pods, ResourceClaimTemplates, ResourceClaims |
 | `gpu` | Uninstall Intel GPU Base Operator (Helm releases, CRDs, RBAC, namespace) |
 | `cnv` | Remove CNV operator, HyperConverged CR, CRDs, webhooks, namespace |
+| `gpu-mc` | Delete SR-IOV + IOMMU MachineConfigs (triggers node reboot) |
 | `assisted` | Delete assisted-installer namespace |
 
 ```bash

@@ -383,6 +383,40 @@
             label: "{{ item.metadata.name }}"
           when: cnv_mwcs.resources | length > 0
 
+    # ── SR-IOV + IOMMU MachineConfigs ────────────────────────────
+    - name: Remove SR-IOV and IOMMU MachineConfigs
+      tags: [gpu-mc]
+      block:
+        - name: Delete SR-IOV GPU MachineConfig
+          kubernetes.core.k8s:
+            state: absent
+            api_version: machineconfiguration.openshift.io/v1
+            kind: MachineConfig
+            name: 94-sriov-gpu
+
+        - name: Delete IOMMU MachineConfig
+          kubernetes.core.k8s:
+            state: absent
+            api_version: machineconfiguration.openshift.io/v1
+            kind: MachineConfig
+            name: 91-iommu-pt
+
+        - name: Wait for MachineConfigPool master to finish updating
+          kubernetes.core.k8s_info:
+            api_version: machineconfiguration.openshift.io/v1
+            kind: MachineConfigPool
+            name: master
+          register: gpu_mc_mcp_result
+          until: >-
+            gpu_mc_mcp_result.resources is defined and
+            gpu_mc_mcp_result.resources | length > 0 and
+            gpu_mc_mcp_result.resources[0].status.conditions |
+            selectattr('type', 'equalto', 'Updated') |
+            selectattr('status', 'equalto', 'True') | list | length > 0
+          retries: 60
+          delay: 30
+          when: not ansible_check_mode
+
     # ── assisted-installer ────────────────────────────────────────
     - name: Remove assisted-installer namespace
       tags: [assisted]
