@@ -1,0 +1,44 @@
+variant: openshift
+version: {{ butane_ocp_version }}
+metadata:
+  labels:
+    machineconfiguration.openshift.io/role: master
+  name: 94-intel-gpu
+openshift:
+  kernel_arguments:
+    - pci=realloc
+    - intel_iommu=on
+    - iommu=pt
+storage:
+  files:
+    - path: /usr/local/bin/intel-gpu-sriov-setup.sh
+      mode: 0755
+      contents:
+        inline: |
+          #!/bin/bash
+          for dev in /sys/bus/pci/devices/*; do
+            vendor=$(cat "$dev/vendor" 2>/dev/null)
+            class=$(cat "$dev/class" 2>/dev/null)
+            if [ "$vendor" = "0x8086" ] && [[ "$class" = "0x030000" || "$class" = "0x038000" ]]; then
+              totalvfs=$(cat "$dev/sriov_totalvfs" 2>/dev/null)
+              if [ "${totalvfs:-0}" -gt 0 ]; then
+                echo "$totalvfs" > "$dev/sriov_numvfs"
+              fi
+            fi
+          done
+systemd:
+  units:
+    - name: intel-gpu-sriov-setup.service
+      enabled: true
+      contents: |
+        [Unit]
+        Description=Enable Intel GPU SR-IOV Virtual Functions
+        After=systemd-modules-load.service
+
+        [Service]
+        Type=oneshot
+        ExecStart=/usr/local/bin/intel-gpu-sriov-setup.sh
+        RemainAfterExit=yes
+
+        [Install]
+        WantedBy=multi-user.target

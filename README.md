@@ -1,12 +1,12 @@
 # SNO + CNV + BMG GPU Ansible Playbooks
 
-Ansible automation for provisioning a Single Node OpenShift (SNO) cluster with OpenShift Virtualization (CNV), LVMS storage, cert-manager TLS, and Intel BattleMage GPU passthrough.
+Ansible automation for provisioning a Single Node OpenShift (SNO) cluster with OpenShift Virtualization (CNV), LVMS storage, cert-manager TLS, NFD, and Intel GPU access via DRA (Dynamic Resource Allocation).
 
 Four playbooks cover the full lifecycle:
 
 1. **`configure-cloudflare-dns.yml`** (Pre-deploy) — creates Cloudflare DNS records for the cluster
 2. **`generate-iso.yml`** (Day-0) — generates an agent-based installer ISO with MachineConfigs baked in
-3. **`configure-cluster.yml`** (Day-2) — installs operators, configures GPU passthrough, provisions a VM
+3. **`configure-cluster.yml`** (Day-2) — installs operators, configures GPU SR-IOV + DRA
 4. **`teardown-cluster.yml`** (Teardown) — removes selected day-2 components, returning the cluster to a baseline
 
 ## Prerequisites
@@ -27,7 +27,7 @@ Install on workstation:
 - `oc`
 - `butane`
 - `openshift-install`
-- `helm` (only for DRA GPU mode)
+- `helm`
 
 ## Quick Start
 
@@ -118,13 +118,12 @@ Copy `vars/vault.yml.example` to `vars/vault.yml`, populate, and encrypt with `a
 | Tag | Roles | Description |
 |-----|-------|-------------|
 | `wait` | `wait_cluster` | Wait for cluster API + node ready |
-| `vfio` | `vfio_gpu` | Apply VFIO MachineConfig (triggers reboot) |
+| `sriov` | `sriov_gpu` | Apply Intel GPU MachineConfig (kernel args + SR-IOV VFs, triggers reboot) |
+| `nfd` | `nfd` | Install NFD operator + Intel GPU feature rules |
 | `lvms` | `lvms` | Install LVMS operator + LVMCluster |
-| `cnv` | `cnv` | Install CNV operator + HyperConverged |
+| `cnv` | `cnv` | Install CNV operator + HyperConverged (GPUsWithDRA) |
 | `certmanager` | `certmanager` | Install cert-manager + Let's Encrypt TLS |
 | `dra` | `dra_gpu` | Install Intel DRA GPU driver (Helm) |
-| `vm` | `bmg_vm` | Create RHEL 10 BMG GPU VM |
-| `verify` | `verify` | Print cluster/operator/cert/VM status |
 
 ### `teardown-cluster.yml`
 
@@ -133,12 +132,13 @@ Copy `vars/vault.yml.example` to `vars/vault.yml`, populate, and encrypt with `a
 | `smollm` | Remove smollm inference pods, ResourceClaimTemplates, ResourceClaims |
 | `gpu` | Uninstall Intel GPU Base Operator (Helm releases, CRDs, RBAC, namespace) |
 | `cnv` | Remove CNV operator, HyperConverged CR, CRDs, webhooks, namespace |
-| `gpu-mc` | Delete SR-IOV + IOMMU MachineConfigs (triggers node reboot) |
+| `nfd` | Remove NFD operator, NodeFeatureDiscovery CR, Intel GPU rules, CRDs, namespace |
+| `gpu-mc` | Delete Intel GPU MachineConfig (triggers node reboot) |
 | `assisted` | Delete assisted-installer namespace |
 
 ```bash
 # Run specific tags
-ansible-playbook configure-cluster.yml --ask-vault-pass --tags cnv,vm
+ansible-playbook configure-cluster.yml --ask-vault-pass --tags cnv,dra
 
 # Skip tags
 ansible-playbook configure-cluster.yml --ask-vault-pass --skip-tags certmanager
@@ -157,15 +157,6 @@ ansible-playbook generate-iso.yml --ask-vault-pass \
 ```
 
 Or create an alternate vars file and pass it with `--extra-vars @vars/sno2.yml`.
-
-## GPU Access Modes
-
-| Mode | Day-2 Roles | GPU Exposed As |
-|------|-------------|----------------|
-| `vfio` (default) | `wait_cluster` `vfio_gpu` `lvms` `cnv` `certmanager` `bmg_vm` `verify` | `devices.kubevirt.io/bmg-g31` (KubeVirt device plugin) |
-| `dra` | `wait_cluster` `lvms` `certmanager` `dra_gpu` `verify` | `ResourceSlice` (DRA ResourceClaim) |
-
-Modes are mutually exclusive; `wait_cluster`, `lvms`, `certmanager`, and `verify` run in both. Set `gpu_access_mode` to switch.
 
 ## Booting the ISO via kexec
 

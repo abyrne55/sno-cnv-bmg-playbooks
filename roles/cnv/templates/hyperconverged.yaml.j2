@@ -4,10 +4,5 @@ metadata:
   name: kubevirt-hyperconverged
   namespace: {{ cnv_namespace }}
 spec:
-{% if gpu_access_mode == 'vfio' %}
-  virtualization:
-    permittedHostDevices:
-      pciHostDevices:
-        - pciDeviceSelector: "{{ gpu_pci_id }}"
-          resourceName: "{{ gpu_resource_name }}"
-{% endif %}
+  featureGates:
+    gpusWithDRA: true

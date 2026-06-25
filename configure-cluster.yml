@@ -40,31 +40,20 @@
     - role: wait_cluster
       tags: [wait]
 
-    - role: vfio_gpu
-      tags: [vfio]
-      when: gpu_access_mode == 'vfio' and not (gpu_sriov_enabled | default(false))
-
     - role: sriov_gpu
       tags: [sriov]
-      when: gpu_sriov_enabled | default(false)
+
+    - role: nfd
+      tags: [nfd]
 
     - role: lvms
       tags: [lvms]
 
     - role: cnv
       tags: [cnv]
-      when: gpu_access_mode == 'vfio'
 
     - role: certmanager
       tags: [certmanager]
 
     - role: dra_gpu
       tags: [dra]
-      when: gpu_access_mode == 'dra'
-
-    - role: bmg_vm
-      tags: [vm]
-      when: gpu_access_mode == 'vfio'
-
-    - role: verify
-      tags: [verify]

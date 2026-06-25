@@ -1,9 +1,0 @@
-variant: openshift
-version: {{ butane_ocp_version }}
-metadata:
-  labels:
-    machineconfiguration.openshift.io/role: master
-  name: 91-iommu-pt
-openshift:
-  kernel_arguments:
-  - iommu=pt

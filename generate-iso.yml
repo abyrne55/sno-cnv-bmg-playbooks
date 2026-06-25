@@ -79,7 +79,6 @@
         mode: "0644"
       loop:
         - 90-var-virtstore-partition.bu
-        - 91-iommu-pt.bu
         - 92-serial-console.bu
         - 93-sysrq.bu
       when: not existing_iso.stat.exists
@@ -92,7 +91,6 @@
           -o {{ build_dir }}/openshift/{{ item | regex_replace('\.bu$', '.yaml') }}
       loop:
         - 90-var-virtstore-partition.bu
-        - 91-iommu-pt.bu
         - 92-serial-console.bu
         - 93-sysrq.bu
       changed_when: true

@@ -1,0 +1,96 @@
+---
+- name: Create namespace
+  kubernetes.core.k8s:
+    state: present
+    definition:
+      apiVersion: v1
+      kind: Namespace
+      metadata:
+        name: "{{ nfd_namespace }}"
+
+- name: Create OperatorGroup
+  kubernetes.core.k8s:
+    state: present
+    template: operatorgroup.yaml.j2
+
+- name: Create Subscription
+  kubernetes.core.k8s:
+    state: present
+    template: subscription.yaml.j2
+
+- name: Wait for CSV to succeed
+  kubernetes.core.k8s_info:
+    api_version: operators.coreos.com/v1alpha1
+    kind: ClusterServiceVersion
+    namespace: "{{ nfd_namespace }}"
+    label_selectors:
+      - "operators.coreos.com/nfd.{{ nfd_namespace }}"
+  register: nfd_csv
+  until: >-
+    nfd_csv.resources is defined and
+    nfd_csv.resources | length > 0 and
+    nfd_csv.resources[0].status.phase | default('') == 'Succeeded'
+  retries: "{{ nfd_csv_retries }}"
+  delay: "{{ nfd_csv_delay }}"
+  when: not ansible_check_mode
+
+- name: Wait for NodeFeatureDiscovery CRD
+  kubernetes.core.k8s_info:
+    api_version: apiextensions.k8s.io/v1
+    kind: CustomResourceDefinition
+    name: nodefeaturediscoveries.nfd.openshift.io
+  register: nfd_crd
+  until: nfd_crd.resources is defined and nfd_crd.resources | length > 0
+  retries: 15
+  delay: 10
+  when: not ansible_check_mode
+
+- name: Apply NodeFeatureDiscovery CR
+  kubernetes.core.k8s:
+    state: present
+    template: nodefeaturediscovery.yaml.j2
+
+- name: Wait for NodeFeatureDiscovery Available
+  kubernetes.core.k8s_info:
+    api_version: nfd.openshift.io/v1
+    kind: NodeFeatureDiscovery
+    name: nfd-instance
+    namespace: "{{ nfd_namespace }}"
+  register: nfd_cr_result
+  until: >-
+    nfd_cr_result.resources is defined and
+    nfd_cr_result.resources | length > 0 and
+    nfd_cr_result.resources[0].status.conditions |
+    default([]) |
+    selectattr('type', 'equalto', 'Available') |
+    selectattr('status', 'equalto', 'True') | list | length > 0
+  retries: "{{ nfd_cr_retries }}"
+  delay: "{{ nfd_cr_delay }}"
+  when: not ansible_check_mode
+
+- name: Apply Intel GPU device rule
+  kubernetes.core.k8s:
+    state: present
+    src: "{{ role_path }}/files/nfd-intel-gpu-device-rule.yaml"
+
+- name: Apply Intel GPU platform labeling rule
+  kubernetes.core.k8s:
+    state: present
+    src: "{{ role_path }}/files/nfd-intel-gpu-platform-labeling.yaml"
+
+- name: Wait for Intel GPU node label
+  kubernetes.core.k8s_info:
+    api_version: v1
+    kind: Node
+  register: nfd_node_result
+  until: >-
+    nfd_node_result.resources is defined and
+    nfd_node_result.resources | length > 0 and
+    nfd_node_result.resources[0].metadata.labels['intel.feature.node.kubernetes.io/gpu'] | default('') == 'true'
+  retries: "{{ nfd_cr_retries }}"
+  delay: "{{ nfd_cr_delay }}"
+  when: not ansible_check_mode
+
+- name: Print status
+  ansible.builtin.debug:
+    msg: "NFD deployed — Intel GPU node label applied"

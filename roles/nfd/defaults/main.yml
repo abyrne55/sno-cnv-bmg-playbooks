@@ -1,0 +1,6 @@
+---
+nfd_namespace: openshift-nfd
+nfd_csv_retries: 30
+nfd_csv_delay: 20
+nfd_cr_retries: 30
+nfd_cr_delay: 20

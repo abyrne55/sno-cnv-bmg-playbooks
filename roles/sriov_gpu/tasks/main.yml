@@ -1,8 +1,33 @@
 ---
-- name: Apply SR-IOV GPU MachineConfig
+- name: Create rendered output directory
+  ansible.builtin.file:
+    path: "{{ build_dir }}/rendered"
+    state: directory
+    mode: "0755"
+
+- name: Template Intel GPU Butane config
+  ansible.builtin.template:
+    src: 94-intel-gpu.bu.j2
+    dest: "{{ build_dir }}/rendered/94-intel-gpu.bu"
+    mode: "0644"
+
+- name: Compile Intel GPU Butane config to MachineConfig YAML
+  ansible.builtin.command:
+    cmd: >-
+      {{ butane_binary | default('butane') }} --strict
+      {{ build_dir }}/rendered/94-intel-gpu.bu
+      -o {{ build_dir }}/rendered/94-intel-gpu.yaml
+  changed_when: true
+
+- name: Read compiled MachineConfig
+  ansible.builtin.slurp:
+    src: "{{ build_dir }}/rendered/94-intel-gpu.yaml"
+  register: sriov_gpu_mc_content
+
+- name: Apply Intel GPU MachineConfig
   kubernetes.core.k8s:
     state: present
-    src: "{{ role_path }}/files/94-sriov-gpu.yaml"
+    definition: "{{ sriov_gpu_mc_content.content | b64decode | from_yaml }}"
 
 - name: Wait for MachineConfigPool master to finish updating
   kubernetes.core.k8s_info:
@@ -18,7 +43,8 @@
     selectattr('status', 'equalto', 'True') | list | length > 0
   retries: "{{ sriov_gpu_mcp_retries }}"
   delay: "{{ sriov_gpu_mcp_delay }}"
+  when: not ansible_check_mode
 
 - name: Print MCP status
   ansible.builtin.debug:
-    msg: "MachineConfigPool master is Updated — SR-IOV GPU kernel args applied"
+    msg: "MachineConfigPool master is Updated — Intel GPU kernel args and SR-IOV VFs applied"

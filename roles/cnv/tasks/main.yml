@@ -32,6 +32,7 @@
     cnv_csv.resources[0].status.phase | default('') == 'Succeeded'
   retries: "{{ cnv_csv_retries }}"
   delay: "{{ cnv_csv_delay }}"
+  when: not ansible_check_mode
 
 - name: Wait for HyperConverged CRD
   kubernetes.core.k8s_info:
@@ -42,6 +43,7 @@
   until: cnv_hco_crd.resources is defined and cnv_hco_crd.resources | length > 0
   retries: 15
   delay: 10
+  when: not ansible_check_mode
 
 - name: Apply HyperConverged
   kubernetes.core.k8s:
@@ -64,6 +66,7 @@
     selectattr('status', 'equalto', 'True') | list | length > 0
   retries: "{{ cnv_hco_retries }}"
   delay: "{{ cnv_hco_delay }}"
+  when: not ansible_check_mode
 
 - name: Print status
   ansible.builtin.debug:

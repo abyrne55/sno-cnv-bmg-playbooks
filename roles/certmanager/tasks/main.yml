@@ -32,6 +32,7 @@
     certmanager_csv.resources[0].status.phase | default('') == 'Succeeded'
   retries: "{{ certmanager_csv_retries }}"
   delay: "{{ certmanager_csv_delay }}"
+  when: not ansible_check_mode
 
 - name: Wait for cert-manager pods ready
   kubernetes.core.k8s_info:
@@ -46,6 +47,7 @@
   until: certmanager_pods.resources is defined and certmanager_pods.resources | length > 0
   retries: 30
   delay: 10
+  when: not ansible_check_mode
 
 - name: Wait for ClusterIssuer CRD
   kubernetes.core.k8s_info:
@@ -56,6 +58,7 @@
   until: certmanager_ci_crd.resources is defined and certmanager_ci_crd.resources | length > 0
   retries: 15
   delay: 10
+  when: not ansible_check_mode
 
 - name: Create Cloudflare API token Secret
   kubernetes.core.k8s:
@@ -70,6 +73,7 @@
   until: certmanager_ci_result is not failed
   retries: "{{ certmanager_ci_retries }}"
   delay: "{{ certmanager_ci_delay }}"
+  when: not ansible_check_mode
 
 - name: Apply Certificates
   kubernetes.core.k8s:
@@ -92,6 +96,7 @@
     selectattr('status', 'equalto', 'True') | list | length > 0
   retries: "{{ certmanager_cert_retries }}"
   delay: "{{ certmanager_cert_delay }}"
+  when: not ansible_check_mode
 
 - name: Wait for API certificate Ready
   kubernetes.core.k8s_info:
@@ -109,6 +114,7 @@
     selectattr('status', 'equalto', 'True') | list | length > 0
   retries: "{{ certmanager_cert_retries }}"
   delay: "{{ certmanager_cert_delay }}"
+  when: not ansible_check_mode
 
 - name: Patch IngressController with wildcard cert
   kubernetes.core.k8s:
@@ -162,7 +168,9 @@
     > _pre_rev | int
   retries: "{{ certmanager_co_retries }}"
   delay: "{{ certmanager_co_delay }}"
-  when: certmanager_api_patch.changed
+  when:
+    - not ansible_check_mode
+    - certmanager_api_patch.changed
 
 - name: Wait for kube-apiserver ClusterOperator to settle
   kubernetes.core.k8s_info:
@@ -182,6 +190,7 @@
     selectattr('status', 'equalto', 'False') | list | length > 0
   retries: "{{ certmanager_co_retries }}"
   delay: "{{ certmanager_co_delay }}"
+  when: not ansible_check_mode
 
 - name: Strip self-signed CA from kubeconfig
   ansible.builtin.replace:
@@ -198,6 +207,7 @@
   until: certmanager_tls_check is not failed
   retries: 30
   delay: 20
+  when: not ansible_check_mode
 
 - name: Print status
   ansible.builtin.debug:

@@ -32,6 +32,7 @@
     lvms_csv.resources[0].status.phase | default('') == 'Succeeded'
   retries: "{{ lvms_csv_retries }}"
   delay: "{{ lvms_csv_delay }}"
+  when: not ansible_check_mode
 
 - name: Apply LVMCluster
   kubernetes.core.k8s:
@@ -51,6 +52,7 @@
     lvms_lvm_result.resources[0].status.state | default('') == 'Ready'
   retries: "{{ lvms_cluster_retries }}"
   delay: "{{ lvms_cluster_delay }}"
+  when: not ansible_check_mode
 
 - name: Verify StorageClass exists
   kubernetes.core.k8s_info:
@@ -61,6 +63,7 @@
   until: lvms_sc_result.resources is defined and lvms_sc_result.resources | length > 0
   retries: 10
   delay: 10
+  when: not ansible_check_mode
 
 - name: Print status
   ansible.builtin.debug:

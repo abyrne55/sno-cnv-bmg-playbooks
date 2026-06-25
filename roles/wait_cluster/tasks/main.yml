@@ -8,6 +8,7 @@
   until: wait_cluster_cv_result is not failed
   retries: "{{ wait_cluster_api_retries }}"
   delay: "{{ wait_cluster_api_delay }}"
+  when: not ansible_check_mode
 
 - name: Wait for ClusterVersion Available
   kubernetes.core.k8s_info:
@@ -23,6 +24,7 @@
     selectattr('status', 'equalto', 'True') | list | length > 0
   retries: "{{ wait_cluster_api_retries }}"
   delay: "{{ wait_cluster_api_delay }}"
+  when: not ansible_check_mode
 
 - name: Wait for node Ready
   kubernetes.core.k8s_info:
@@ -37,6 +39,7 @@
     selectattr('status', 'equalto', 'True') | list | length > 0
   retries: "{{ wait_cluster_node_retries }}"
   delay: "{{ wait_cluster_node_delay }}"
+  when: not ansible_check_mode
 
 - name: Print cluster version
   ansible.builtin.debug:

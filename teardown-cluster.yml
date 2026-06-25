@@ -187,9 +187,6 @@
           loop:
             - clusterpolicies.intel.com
             - gpufirmwareupdates.intel.com
-            - nodefeaturegroups.nfd.k8s-sigs.io
-            - nodefeaturerules.nfd.k8s-sigs.io
-            - nodefeatures.nfd.k8s-sigs.io
 
         - name: Look up GPU webhook configurations
           kubernetes.core.k8s_info:
@@ -383,23 +380,130 @@
             label: "{{ item.metadata.name }}"
           when: cnv_mwcs.resources | length > 0
 
-    # ── SR-IOV + IOMMU MachineConfigs ────────────────────────────
-    - name: Remove SR-IOV and IOMMU MachineConfigs
+    # ── NFD (Node Feature Discovery) ────────────────────────────
+    - name: Remove NFD operator and resources
+      tags: [nfd]
+      block:
+        - name: Delete Intel GPU NodeFeatureRules
+          kubernetes.core.k8s:
+            state: absent
+            api_version: nfd.k8s-sigs.io/v1alpha1
+            kind: NodeFeatureRule
+            name: "{{ item }}"
+          loop:
+            - intel-gpu-device-rule
+            - intel-gpu-platform-labeling
+
+        - name: Check if NodeFeatureDiscovery exists
+          kubernetes.core.k8s_info:
+            api_version: nfd.openshift.io/v1
+            kind: NodeFeatureDiscovery
+            name: nfd-instance
+            namespace: openshift-nfd
+          register: nfd_cr
+          failed_when: false
+
+        - name: Delete NodeFeatureDiscovery CR
+          kubernetes.core.k8s:
+            state: absent
+            api_version: nfd.openshift.io/v1
+            kind: NodeFeatureDiscovery
+            name: nfd-instance
+            namespace: openshift-nfd
+          when: nfd_cr.resources | default([]) | length > 0
+
+        - name: Wait for NodeFeatureDiscovery removal
+          kubernetes.core.k8s_info:
+            api_version: nfd.openshift.io/v1
+            kind: NodeFeatureDiscovery
+            name: nfd-instance
+            namespace: openshift-nfd
+          register: nfd_cr_wait
+          until: nfd_cr_wait.resources | default([]) | length == 0
+          retries: 30
+          delay: 10
+          when:
+            - not ansible_check_mode
+            - nfd_cr.resources | default([]) | length > 0
+
+        - name: Delete NFD Subscription
+          kubernetes.core.k8s:
+            state: absent
+            api_version: operators.coreos.com/v1alpha1
+            kind: Subscription
+            name: nfd
+            namespace: openshift-nfd
+
+        - name: Look up NFD CSVs
+          kubernetes.core.k8s_info:
+            api_version: operators.coreos.com/v1alpha1
+            kind: ClusterServiceVersion
+            namespace: openshift-nfd
+          register: nfd_csvs
+
+        - name: Delete NFD CSVs
+          kubernetes.core.k8s:
+            state: absent
+            api_version: operators.coreos.com/v1alpha1
+            kind: ClusterServiceVersion
+            namespace: openshift-nfd
+            name: "{{ item.metadata.name }}"
+          loop: >-
+            {{ nfd_csvs.resources
+               | selectattr('metadata.name', 'match', '^nfd\.')
+               | list }}
+          loop_control:
+            label: "{{ item.metadata.name }}"
+          when: nfd_csvs.resources | length > 0
+
+        - name: Delete NFD OperatorGroup
+          kubernetes.core.k8s:
+            state: absent
+            api_version: operators.coreos.com/v1
+            kind: OperatorGroup
+            name: nfd
+            namespace: openshift-nfd
+
+        - name: Delete openshift-nfd namespace
+          kubernetes.core.k8s:
+            state: absent
+            api_version: v1
+            kind: Namespace
+            name: openshift-nfd
+
+        - name: Wait for openshift-nfd namespace termination
+          kubernetes.core.k8s_info:
+            api_version: v1
+            kind: Namespace
+            name: openshift-nfd
+          register: nfd_ns
+          until: nfd_ns.resources | length == 0
+          retries: 60
+          delay: 10
+          when: not ansible_check_mode
+
+        - name: Delete NFD CRDs
+          kubernetes.core.k8s:
+            state: absent
+            api_version: apiextensions.k8s.io/v1
+            kind: CustomResourceDefinition
+            name: "{{ item }}"
+          loop:
+            - nodefeaturegroups.nfd.k8s-sigs.io
+            - nodefeaturerules.nfd.k8s-sigs.io
+            - nodefeatures.nfd.k8s-sigs.io
+            - nodefeaturediscoveries.nfd.openshift.io
+
+    # ── Intel GPU MachineConfig ─────────────────────────────────
+    - name: Remove Intel GPU MachineConfig
       tags: [gpu-mc]
       block:
-        - name: Delete SR-IOV GPU MachineConfig
+        - name: Delete Intel GPU MachineConfig
           kubernetes.core.k8s:
             state: absent
             api_version: machineconfiguration.openshift.io/v1
             kind: MachineConfig
-            name: 94-sriov-gpu
-
-        - name: Delete IOMMU MachineConfig
-          kubernetes.core.k8s:
-            state: absent
-            api_version: machineconfiguration.openshift.io/v1
-            kind: MachineConfig
-            name: 91-iommu-pt
+            name: 94-intel-gpu
 
         - name: Wait for MachineConfigPool master to finish updating
           kubernetes.core.k8s_info:

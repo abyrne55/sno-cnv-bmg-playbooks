@@ -1,7 +1,7 @@
 ---
 dra_gpu_namespace: intel-gpu-resource-driver
-dra_gpu_driver_version: "0.10.0"
-dra_gpu_driver_chart: "oci://registry.example.com/intel-gpu-resource-driver"
+dra_gpu_driver_version: "0.11.0"
+dra_gpu_driver_chart: "oci://ghcr.io/intel/intel-resource-drivers-for-kubernetes/intel-gpu-resource-driver-chart"
 dra_gpu_release_name: intel-gpu-resource-driver
 dra_gpu_resourceslice_retries: 30
 dra_gpu_resourceslice_delay: 20

@@ -26,7 +26,6 @@ root_partition_size_mib: 204800  # 200G
 virtstore_device: /dev/nvme0n1p5
 
 # GPU
-gpu_pci_id: "8086:e223"
 
 # TLS (cert-manager / Let's Encrypt)
 acme_email: user@example.com
@@ -50,26 +49,13 @@ cluster_network_cidr: 10.128.0.0/14
 cluster_network_host_prefix: 23
 service_network_cidr: 172.30.0.0/16
 
-# GPU
-gpu_resource_name: devices.kubevirt.io/bmg-g31
-gpu_driver_name: xe
-gpu_access_mode: vfio  # vfio or dra
-gpu_sriov_enabled: false
-
 # Operator channels
 lvms_channel: stable-4.21
 cnv_channel: stable
 certmanager_channel: stable-v1
+nfd_channel: stable
 
 # TLS
 acme_server: https://acme-v02.api.letsencrypt.org/directory
 cert_duration: 2160h   # 90d
 cert_renew_before: 360h  # 15d
-
-# VM
-vm_name: rhel10-bmg
-vm_namespace: bmg-vm
-vm_cpus: 8
-vm_memory: 32Gi
-vm_disk_size: 60Gi
-vm_source_image: rhel10
