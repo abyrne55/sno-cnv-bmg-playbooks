@@ -1,0 +1,45 @@
+---
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  name: dra-vm-test-2
+  namespace: default
+spec:
+  runStrategy: Always
+  template:
+    spec:
+      domain:
+        devices:
+          disks:
+            - name: rootdisk
+              disk:
+                bus: virtio
+          gpus:
+            - name: gpu0
+              claimName: gpu
+              requestName: vf
+        resources:
+          requests:
+            memory: 4Gi
+      resourceClaims:
+        - name: gpu
+          resourceClaimTemplateName: gpu-vf-vfio-claim
+      volumes:
+        - name: rootdisk
+          dataVolume:
+            name: dra-vm-test-2-rootdisk
+  dataVolumeTemplates:
+    - metadata:
+        name: dra-vm-test-2-rootdisk
+      spec:
+        storage:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 30Gi
+          storageClassName: lvms-virtstore
+        sourceRef:
+          kind: DataSource
+          name: fedora
+          namespace: openshift-virtualization-os-images

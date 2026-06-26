@@ -1,0 +1,43 @@
+---
+apiVersion: resource.k8s.io/v1
+kind: ResourceClaimTemplate
+metadata:
+  name: gpu-vf-claim
+  namespace: default
+spec:
+  spec:
+    devices:
+      requests:
+        - name: vf
+          exactly:
+            deviceClassName: gpu.intel.com
+            selectors:
+              - cel:
+                  expression: 'device.attributes["gpu.intel.com"].type == "vf"'
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: dra-pod-test
+  namespace: default
+spec:
+  restartPolicy: Never
+  containers:
+    - name: gpu
+      image: docker.io/intel/oneapi:2026.0.0-devel-rockylinux10
+      command:
+        - sh
+        - -c
+        - |
+          echo "=== /dev/dri/ ==="
+          ls -la /dev/dri/
+          echo "=== sycl-ls ==="
+          sycl-ls
+          echo "=== PASS: DRI devices and SYCL GPU detected ==="
+          sleep 30
+      resources:
+        claims:
+          - name: gpu
+  resourceClaims:
+    - name: gpu
+      resourceClaimTemplateName: gpu-vf-claim
