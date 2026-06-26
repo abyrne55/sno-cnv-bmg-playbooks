@@ -72,11 +72,13 @@
   kubernetes.core.k8s:
     state: present
     src: "{{ role_path }}/files/nfd-intel-gpu-device-rule.yaml"
+    namespace: "{{ nfd_namespace }}"
 
 - name: Apply Intel GPU platform labeling rule
   kubernetes.core.k8s:
     state: present
     src: "{{ role_path }}/files/nfd-intel-gpu-platform-labeling.yaml"
+    namespace: "{{ nfd_namespace }}"
 
 - name: Wait for Intel GPU node label
   kubernetes.core.k8s_info:

@@ -3,6 +3,7 @@ kind: HyperConverged
 metadata:
   name: kubevirt-hyperconverged
   namespace: {{ cnv_namespace }}
-spec:
-  featureGates:
-    gpusWithDRA: true
+  annotations:
+    kubevirt.kubevirt.io/jsonpatch: >-
+      [{"op":"add","path":"/spec/configuration/developerConfiguration/featureGates/-","value":"GPUsWithDRA"}]
+spec: {}

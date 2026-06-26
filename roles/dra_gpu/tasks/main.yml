@@ -22,6 +22,13 @@
     create_namespace: false
     wait: true
     timeout: 10m0s
+    values:
+      openshift:
+        enabled: true
+      kubeletPlugin:
+        privileged: true
+        healthMonitoring:
+          enabled: false
 
 - name: Wait for ResourceSlice showing GPU
   kubernetes.core.k8s_info:
