@@ -18,7 +18,7 @@ spec:
           echo "=== sycl-ls ==="
           sycl-ls
           echo "=== PASS: DRI devices and SYCL GPU detected ==="
-          sleep 30
+          sleep 300
       resources:
         claims:
           - name: gpu

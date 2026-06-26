@@ -5,8 +5,8 @@ set -euo pipefail
 PASS=0
 FAIL=0
 
-pass() { echo "  PASS: $1"; ((PASS++)); }
-fail() { echo "  FAIL: $1"; ((FAIL++)); }
+pass() { echo "  PASS: $1"; PASS=$((PASS + 1)); }
+fail() { echo "  FAIL: $1"; FAIL=$((FAIL + 1)); }
 
 echo "=== Step 5 Validation: 2 Pods + 2 VMs with DRA GPU VFs ==="
 echo
@@ -66,11 +66,11 @@ echo
 echo "--- PF/iGPU Exclusion ---"
 pf_allocated=$(echo "$claims_json" | jq -r '
   [.items[].status.allocation.devices.results[]? |
-   select(.device == "gpu-0000-04-00-0")] | length
+   select(.device | startswith("0000-04-00-0"))] | length
 ')
 igpu_allocated=$(echo "$claims_json" | jq -r '
   [.items[].status.allocation.devices.results[]? |
-   select(.device == "gpu-0000-00-02-0")] | length
+   select(.device | startswith("0000-00-02-0"))] | length
 ')
 
 if [[ "$pf_allocated" -eq 0 ]]; then
