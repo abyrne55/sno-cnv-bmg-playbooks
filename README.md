@@ -118,7 +118,7 @@ Copy `vars/vault.yml.example` to `vars/vault.yml`, populate, and encrypt with `a
 | Tag | Roles | Description |
 |-----|-------|-------------|
 | `wait` | `wait_cluster` | Wait for cluster API + node ready |
-| `sriov` | `sriov_gpu` | Apply Intel GPU MachineConfig (kernel args + SR-IOV VFs, triggers reboot) |
+| `sriov` | `sriov_gpu` | Apply Intel GPU MachineConfig (kernel args, SR-IOV VFs, vfio-pci module, triggers reboot) |
 | `nfd` | `nfd` | Install NFD operator + Intel GPU feature rules |
 | `lvms` | `lvms` | Install LVMS operator + LVMCluster |
 | `cnv` | `cnv` | Install CNV operator + HyperConverged (GPUsWithDRA) |
@@ -216,6 +216,16 @@ openshift-install --dir build/<cluster> agent wait-for install-complete --log-le
 - **`ignition.firstboot` and `ignition.platform.id=metal`** are required — without them, the Ignition config is silently skipped
 - Generate the ISO on your **workstation**, not the target host — `openshift-install` creates `auth/kubeconfig` alongside the ISO, and the target disk will be wiped
 - **Unbind VFIO devices before `kexec -e`** — if a PCI device is bound to `vfio-pci` (e.g. for GPU passthrough), the kexec transition will hang. Stop any VMs using the device, then unbind it: `echo <pci-addr> > /sys/bus/pci/drivers/vfio-pci/unbind`
+
+## Tests
+
+Ad-hoc validation tests live under `tests/`. These are standalone YAML manifests applied with `oc apply -f`, not part of the Ansible pipeline.
+
+| Test | Directory | Description |
+|------|-----------|-------------|
+| DRA GPU Sharing | `tests/dra-gpu-sharing/` | Validates DRA serving GPU VFs to pods (xe/DRM) and VMs (VFIO passthrough) simultaneously |
+
+See each test directory's `README.md` for step-by-step instructions.
 
 ## Known Issues
 
