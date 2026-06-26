@@ -496,6 +496,10 @@
             - nodefeaturediscoveries.nfd.openshift.io
 
     # ── Intel DRA GPU Driver ─────────────────────────────────────
+    # WARNING: Delete all workloads that use DRA ResourceClaims BEFORE
+    # running this block. The kubelet calls NodeUnprepareResources on the
+    # DRA plugin during pod termination — if the plugin is already gone,
+    # pods get stuck in Terminating indefinitely.
     - name: Remove Intel DRA GPU resource driver
       tags: [dra]
       block:

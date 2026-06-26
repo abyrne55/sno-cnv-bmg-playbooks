@@ -72,6 +72,8 @@ ansible-playbook teardown-cluster.yml --ask-vault-pass --tags cnv
 ansible-playbook teardown-cluster.yml --check --diff --ask-vault-pass
 ```
 
+**Important:** Delete all workloads that use DRA ResourceClaims (pods, VMs) *before* tearing down the DRA driver (`--tags dra`). The kubelet calls `NodeUnprepareResources` on the DRA plugin during pod termination — if the plugin is already gone, pods get stuck in `Terminating` indefinitely.
+
 To remove DNS records when decommissioning a cluster:
 
 ```bash
