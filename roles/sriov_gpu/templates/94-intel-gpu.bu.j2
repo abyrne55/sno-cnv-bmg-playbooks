@@ -11,6 +11,11 @@ openshift:
     - iommu=pt
 storage:
   files:
+    - path: /etc/modules-load.d/vfio-pci.conf
+      mode: 0644
+      contents:
+        inline: |
+          vfio-pci
     - path: /usr/local/bin/intel-gpu-sriov-setup.sh
       mode: 0755
       contents:
