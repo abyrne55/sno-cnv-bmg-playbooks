@@ -133,6 +133,7 @@ Copy `vars/vault.yml.example` to `vars/vault.yml`, populate, and encrypt with `a
 | `gpu` | Uninstall Intel GPU Base Operator (Helm releases, CRDs, RBAC, namespace) |
 | `cnv` | Remove CNV operator, HyperConverged CR, CRDs, webhooks, namespace |
 | `nfd` | Remove NFD operator, NodeFeatureDiscovery CR, Intel GPU rules, CRDs, namespace |
+| `dra` | Uninstall Intel DRA GPU resource driver (Helm release, SCC binding, namespace) |
 | `gpu-mc` | Delete Intel GPU MachineConfig (triggers node reboot) |
 | `assisted` | Delete assisted-installer namespace |
 

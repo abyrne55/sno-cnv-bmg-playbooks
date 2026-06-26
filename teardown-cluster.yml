@@ -495,6 +495,42 @@
             - nodefeatures.nfd.k8s-sigs.io
             - nodefeaturediscoveries.nfd.openshift.io
 
+    # ── Intel DRA GPU Driver ─────────────────────────────────────
+    - name: Remove Intel DRA GPU resource driver
+      tags: [dra]
+      block:
+        - name: Uninstall Intel GPU resource driver Helm release
+          kubernetes.core.helm:
+            name: intel-gpu-resource-driver
+            release_namespace: intel-gpu-resource-driver
+            state: absent
+            wait: true
+
+        - name: Delete DRA GPU SCC ClusterRoleBinding
+          kubernetes.core.k8s:
+            state: absent
+            api_version: rbac.authorization.k8s.io/v1
+            kind: ClusterRoleBinding
+            name: intel-gpu-resource-driver-privileged
+
+        - name: Delete intel-gpu-resource-driver namespace
+          kubernetes.core.k8s:
+            state: absent
+            api_version: v1
+            kind: Namespace
+            name: intel-gpu-resource-driver
+
+        - name: Wait for intel-gpu-resource-driver namespace termination
+          kubernetes.core.k8s_info:
+            api_version: v1
+            kind: Namespace
+            name: intel-gpu-resource-driver
+          register: dra_ns
+          until: dra_ns.resources | length == 0
+          retries: 60
+          delay: 10
+          when: not ansible_check_mode
+
     # ── Intel GPU MachineConfig ─────────────────────────────────
     - name: Remove Intel GPU MachineConfig
       tags: [gpu-mc]
